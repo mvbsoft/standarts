@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- report-site 1.0.0 — from the standard's templates/report-site; change it there, not here. -->
+<title>Project report</title>
+<style>
+:root{--bg:#f7f6f2;--paper:#fff;--ink:#1d1d1b;--ink-2:#5b5a55;--rule:#e2e0d8;--accent:#2f5d8a;--ok:#2e7d4f;--warn:#9a6a00;
+--ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151514;--paper:#1e1e1c;--ink:#ecebe6;--ink-2:#a9a8a1;--rule:#33322e;--accent:#8db6e0;--ok:#6cc495;--warn:#e0b450}}
+:root[data-theme="dark"]{--bg:#151514;--paper:#1e1e1c;--ink:#ecebe6;--ink-2:#a9a8a1;--rule:#33322e;--accent:#8db6e0;--ok:#6cc495;--warn:#e0b450}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--ui)}
+main{max-width:980px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:24px;margin:4px 0 2px}
+.lede{color:var(--ink-2);margin:0 0 16px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);overflow-x:auto}
+.tab{appearance:none;border:0;background:none;font:inherit;font-weight:600;color:var(--ink-2);padding:9px 12px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.panel{padding-top:12px}
+.doc{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:4px 18px 12px;margin:12px 0}
+.doc .file{font:12px var(--mono);color:var(--ink-2);margin:10px 0 0}
+.md{overflow-wrap:anywhere}
+.md table{border-collapse:collapse;width:100%;font-size:13.5px;display:block;overflow-x:auto}
+.md th,.md td{border:1px solid var(--rule);padding:5px 8px;text-align:left;vertical-align:top}
+.md code{font:13px var(--mono);background:color-mix(in srgb,var(--rule) 45%,transparent);padding:1px 4px;border-radius:4px}
+.md pre{overflow-x:auto;background:color-mix(in srgb,var(--rule) 35%,transparent);padding:10px;border-radius:6px}
+.md pre code{background:none;padding:0}
+.md a{color:var(--accent)}
+.bar{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--rule)}
+.btn{font:inherit;font-weight:600;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:6px;padding:7px 12px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.status{color:var(--ink-2);font-size:13.5px}
+.save{font-size:13px;color:var(--ink-2)}
+.save.on{color:var(--ok)}
+.save.err{color:var(--warn)}
+.q{background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--rule);border-radius:8px;padding:6px 16px 14px;margin:14px 0}
+.q.answered{border-left-color:var(--ok)}
+.q h3{font-size:17px;margin:10px 0 4px}
+.q .id{font:600 12px var(--mono);color:var(--accent);margin-right:6px}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--rule);border-radius:6px;padding:8px 10px;margin:6px 0;cursor:pointer}
+.opt input{margin-top:4px}
+.opt .rec{display:inline-block;font-size:12px;font-weight:600;color:var(--ok);margin-left:6px}
+fieldset{border:0;padding:0;margin:8px 0}
+legend{font-size:13px;color:var(--ink-2)}
+textarea{width:100%;min-height:64px;font:inherit;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink);padding:8px}
+label.note{display:block;font-size:13px;color:var(--ink-2);margin-top:8px}
+.err{color:var(--warn)}
+#copy-box{display:none;width:100%;min-height:160px;font:12.5px var(--mono)}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+</head>
+<body>
+<main>
+  <h1 id="title">Project report</h1>
+  <p class="lede" id="lede"></p>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="panel" id="panel" role="tabpanel"></div>
+</main>
+<script>
+/* The page reads the report's markdown files next to it and shows them on three tabs. The md files
+   are the source of truth; the page only renders them and stores the owner's answers. */
+const UK=/^uk\b/i.test(navigator.language||'');
+const T=(en,uk)=>UK?uk:en;
+document.documentElement.lang=UK?'uk':'en';
+const TABS=[
+  {id:'state',label:T('State','Стан'),files:['00-summary.md','01-current-state.md','02-deviations.md']},
+  {id:'questions',label:T('Questions','Питання'),files:['questions.md']},
+  {id:'plan',label:T('Plan','План'),files:['03-target-and-plan.md','04-registry.md','05-sources.md','proposals.md']}
+];
+const cache=new Map();
+function load(f){if(!cache.has(f))cache.set(f,fetch(encodeURI(f)).then(r=>r.ok?r.text():null).catch(()=>null));return cache.get(f);}
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+/* no form controls or inline styles from the markdown: they could pass for the page's own answer form */
+const PURIFY={FORBID_TAGS:['form','input','button','textarea','select','style'],FORBID_ATTR:['style']};
+function md(text){const d=el('div','md');d.innerHTML=DOMPurify.sanitize(marked.parse(text),PURIFY);return d;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* answers: the db capability when this view has it, the browser as a draft otherwise */
+const DRAFT='report-answers';
+let db=null;
+const answers={};
+function readDraft(){try{return JSON.parse(localStorage.getItem(DRAFT)||'{}')||{};}catch(e){return {};}}
+function writeDraft(){try{localStorage.setItem(DRAFT,JSON.stringify(answers));}catch(e){}}
+async function connect(){
+  try{db=window.claude&&await window.claude.use('db');}catch(e){db=null;}
+  if(!db)return false;
+  try{const snap=await db.collection('answers').get();snap.docs.forEach(d=>{answers[d.id]=d.data();});return true;}
+  catch(e){db=null;return false;}
+}
+let saveTimers={};
+function save(id){
+  writeDraft();
+  if(!db)return;
+  clearTimeout(saveTimers[id]);
+  saveTimers[id]=setTimeout(()=>{db.collection('answers').doc(id).set(Object.assign({},answers[id],{updatedAt:new Date().toISOString()})).then(()=>saveState(true)).catch(()=>saveState(false));},600);
+}
+function saveState(ok){const s=document.querySelector('.save');if(!s)return;s.classList.toggle('on',ok);s.classList.toggle('err',!ok);s.textContent=ok?T('Answers are saved on this page: tell the agent "answered".','Відповіді зберігаються на сторінці: напиши агентові «відповів».'):T('Not saved: copy the answers into the chat.','Не збережено: скопіюй відповіді в чат.');}
+
+function parseQuestions(text){
+  const qs=[];let q=null;
+  text.replace(/<!--[\s\S]*?-->/g,'').split(/\r?\n/).forEach(line=>{
+    let m;
+    if((m=line.match(/^###\s+(Q-\d+)\.\s*(.+)$/))){q={id:m[1],title:m[2].trim(),pre:[],opts:[],post:[],rec:null};qs.push(q);return;}
+    if(!q||/^#{1,2}\s/.test(line))return;
+    if((m=line.match(/^- \[([A-Z])\]\s+(.*)$/))){q.opts.push({key:m[1],md:m[2]});return;}
+    if((m=line.match(/^(?:Recommendation|Рекомендація):\s*([A-Z])\b/))){q.rec=m[1];return;}
+    (q.opts.length?q.post:q.pre).push(line);
+  });
+  return qs;
+}
+
+function answersText(qs){
+  const lines=[T('Answers to the questions:','Відповіді на питання:'),''];
+  qs.forEach(q=>{
+    const a=answers[q.id]||{};const o=q.opts.find(o=>o.key===a.choice);
+    lines.push(q.id+'. '+q.title);
+    lines.push(T('Answer: ','Відповідь: ')+(a.choice==='other'?T('own option','свій варіант'):a.choice?(a.choice+(o?' — '+o.md.replace(/\*\*/g,'').split('.')[0]:'')):T('none','немає')));
+    if(a.note&&a.note.trim())lines.push(T('Comment: ','Коментар: ')+a.note.trim().replace(/\n+/g,' / '));
+    lines.push('');
+  });
+  return lines.join('\n').trim()+'\n';
+}
+
+async function questionsPanel(panel,text,my){
+  const qs=parseQuestions(text);
+  if(!qs.length){panel.appendChild(el('p','',T('No open questions.','Відкритих питань немає.')));return;}
+  const stored=await connect();
+  if(my!==gen)return;
+  if(!stored)Object.assign(answers,readDraft());
+  const bar=el('div','bar');
+  bar.innerHTML='<span class="status" id="progress"></span>'+
+    '<span class="save'+(stored?' on':'')+'">'+(stored?T('Answers are saved on this page: tell the agent "answered".','Відповіді зберігаються на сторінці: напиши агентові «відповів».'):T('This view cannot save answers: copy them into the chat.','Ця сторінка не може зберегти відповіді: скопіюй їх у чат.'))+'</span>'+
+    '<button type="button" class="btn primary" id="copy">'+T('Copy answers','Скопіювати відповіді')+'</button>';
+  panel.appendChild(bar);
+  const box=el('textarea');box.id='copy-box';box.readOnly=true;panel.appendChild(box);
+  const cards={};
+  qs.forEach(q=>{
+    const a=answers[q.id]=answers[q.id]||{};
+    const card=el('article','q');card.id=q.id;
+    card.appendChild(el('h3','','<span class="id">'+esc(q.id)+'</span>'+esc(q.title)));
+    if(q.pre.join('').trim())card.appendChild(md(q.pre.join('\n')));
+    const fs=el('fieldset');fs.appendChild(el('legend','',T('Options','Варіанти')));
+    const opt=(key,html,rec)=>{
+      const lab=el('label','opt');
+      lab.innerHTML='<input type="radio" name="'+q.id+'" value="'+key+'"><span>'+html+(rec?'<span class="rec">'+T('recommended','рекомендовано')+'</span>':'')+'</span>';
+      const inp=lab.querySelector('input');inp.checked=a.choice===key;
+      inp.addEventListener('change',()=>{a.choice=key;save(q.id);refresh();});
+      fs.appendChild(lab);
+    };
+    q.opts.forEach(o=>opt(o.key,'<b>'+o.key+'.</b> '+DOMPurify.sanitize(marked.parseInline(o.md),PURIFY),q.rec===o.key));
+    opt('other','<b>'+T('Own option.','Свій варіант.')+'</b> '+T('Describe it in the comment.','Опиши його в коментарі.'),false);
+    card.appendChild(fs);
+    const lab=el('label','note',T('Comment','Коментар'));const ta=el('textarea');ta.value=a.note||'';
+    ta.addEventListener('input',()=>{a.note=ta.value;save(q.id);});
+    lab.appendChild(ta);card.appendChild(lab);
+    if(q.post.join('').trim())card.appendChild(md(q.post.join('\n')));
+    cards[q.id]=card;panel.appendChild(card);
+  });
+  function refresh(){
+    let n=0;qs.forEach(q=>{const ok=!!(answers[q.id]||{}).choice;if(ok)n++;cards[q.id].classList.toggle('answered',ok);});
+    bar.querySelector('#progress').textContent=T('Answered ','Відповіді: ')+n+T(' of ',' з ')+qs.length;
+  }
+  refresh();
+  bar.querySelector('#copy').addEventListener('click',()=>{
+    const t=answersText(qs);
+    const show=()=>{box.style.display='block';box.value=t;box.focus();box.select();};
+    try{navigator.clipboard.writeText(t).then(()=>{box.style.display='none';bar.querySelector('#progress').textContent=T('Copied: paste it into the chat.','Скопійовано: встав у чат.');},show);}catch(e){show();}
+  });
+}
+
+/* a later show() wins: an earlier one that is still loading stops instead of adding its files */
+let gen=0;
+async function show(tab){
+  const my=++gen;
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.id===tab.id)));
+  const panel=document.getElementById('panel');panel.replaceChildren();
+  let any=false;
+  for(const f of tab.files){
+    const text=await load(f);if(my!==gen)return;if(text==null)continue;any=true;
+    if(f==='questions.md'){await questionsPanel(panel,text,my);continue;}
+    const d=el('section','doc');d.id=f;d.appendChild(el('p','file',esc(f)));d.appendChild(md(text));panel.appendChild(d);
+  }
+  if(!any)panel.appendChild(el('p','',T('Nothing here yet.','Тут поки нічого.')));
+}
+
+/* a link to a report file opens its tab instead of the raw md, then scrolls to the #id if there is one */
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const [f,id]=a.getAttribute('href').split('#');const tab=TABS.find(t=>t.files.includes(f));if(!tab)return;e.preventDefault();try{history.replaceState(null,'','#'+tab.id);}catch(_){}show(tab).then(()=>{const t=document.getElementById(id||f);if(t)t.scrollIntoView();});});
+
+(async()=>{
+  const tabs=document.getElementById('tabs');
+  TABS.forEach(t=>{const b=el('button','tab',esc(t.label));b.type='button';b.setAttribute('role','tab');b.dataset.id=t.id;b.addEventListener('click',()=>{show(t);try{history.replaceState(null,'','#'+t.id);}catch(e){}});tabs.appendChild(b);});
+  const summary=await load('00-summary.md');
+  const h1=summary&&summary.match(/^#\s+(.+)$/m);
+  if(h1){document.getElementById('title').textContent=h1[1];document.title=h1[1];}
+  document.getElementById('lede').textContent=T('The report, the questions and the plan. The page shows the markdown files of the report folder.','Звіт, питання і план. Сторінка показує md-файли теки звіту.');
+  const start=TABS.find(t=>'#'+t.id===location.hash)||TABS[0];
+  show(start);
+})();
+</script>
+</body>
+</html>

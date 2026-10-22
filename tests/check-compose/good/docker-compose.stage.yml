@@ -1,0 +1,28 @@
+name: fixture-stage
+x-hard: &hard
+  restart: always
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+  deploy: {resources: {limits: {cpus: "1", memory: 512M}}}
+  memswap_limit: 512m
+# A comment is not checked: ${DB_PASSWORD}
+services:
+  app:
+    <<: *hard
+    image: fixture-app:${IMAGE_TAG:?}
+    ports: ["127.0.0.1:${APP_PORT:?}:8000"]
+    environment: {DB_PASSWORD: "${DB_PASSWORD:?}", KEYCLOAK_URL: "${KEYCLOAK_URL:-http://keycloak:8080}", BYPASS_CACHE: "${BYPASS_CACHE:-0}"}
+    healthcheck: {test: ["CMD", "true"]}
+    depends_on: {db: {condition: service_healthy}}
+  db:
+    <<: *hard
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    cap_add: [CHOWN]
+    environment: {POSTGRES_PASSWORD: "${DB_PASSWORD:?}"}
+    healthcheck: {test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD pg_isready -U postgres"]}
+x-check-compose-allow:
+  db:
+    user: "the official image starts as root and drops privileges itself"
+    cap_add: "the entrypoint gives the data folder to postgres"

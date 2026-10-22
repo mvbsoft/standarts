@@ -1,0 +1,8 @@
+# project template 1.0.0 — a starting point (standard QLT-01): make image-scan runs trivy with this
+# file. Stock base images have many findings, so it starts with the critical ones that have a fix;
+# tighten it as the project can (add HIGH, then drop ignore-unfixed). A finding the project accepts
+# goes into .trivyignore: its ID on one line, a comment above it with the reason.
+severity:
+  - CRITICAL
+vulnerability:
+  ignore-unfixed: true

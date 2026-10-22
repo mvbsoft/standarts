@@ -1,0 +1,5 @@
+IMAGES = app
+LINT = php-cs-fixer check --show-progress=none && phpstan analyse --no-progress && rector process --dry-run --no-progress-bar && shellcheck .githooks/pre-push $$(find . -name '*.sh' -not -path './.git/*' -not -path './.claude/worktrees/*') && lychee --offline --no-progress .
+TEST = phpunit
+SECRETS = gitleaks dir --no-banner --no-color --redact -v .
+FIX = php-cs-fixer fix --allow-risky=no --show-progress=none

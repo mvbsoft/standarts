@@ -1,0 +1,51 @@
+name: fixture-stage
+services:
+  app:
+    build: {context: ., dockerfile: docker/app/Dockerfile, target: dev}
+    ports: ["8080:8000"]
+    environment:
+      DB_PASSWORD: "${DB_PASSWORD:-secret}"
+      JWT_SECRET: "${JWT_SECRET}"
+      API_TOKEN: "$API_TOKEN"
+      SESSION_KEY: "${SESSION_KEY-unset}"
+    depends_on: [db]
+    privileged: true
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+  worker:
+    image: fixture-app:${IMAGE_TAG:?}
+    user: root
+    depends_on: {migrate: {condition: service_completed_successfully}}
+  migrate:
+    image: fixture-app:v1
+  cron:
+    image: fixture-app:${IMAGE_TAG:-latest}
+    ports: ["9000"]
+  legacy:
+    image: ghcr.io/example/fixture-app:${IMAGE_TAG:?}
+  db:
+    image: redis:latest
+    network_mode: host
+  cache:
+    image: redis:7
+    cap_add: [NET_ADMIN]
+  proxy:
+    image: node:22-alpine3.20
+  sized:
+    image: busybox@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+    deploy: {resources: {limits: {cpus: "1", memory: 512M}}}
+  swapping:
+    image: busybox:1.36.1@sha256:dc2d74b28e4c
+    memswap_limit: 1g
+    deploy: {resources: {limits: {cpus: "1", memory: 512M}}}
+  floating:
+    image: busybox:latest@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+  debug:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    profiles: [debug]
+    privileged: true
+x-check-compose-allow:
+  db:
+    typo-rule: "x"
+    healthcheck: ""
+  ghost:
+    ports: "y"

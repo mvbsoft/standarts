@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": { "docker-lsp@<repo>-tools": true },
+  "extraKnownMarketplaces": {
+    "<repo>-tools": { "source": { "source": "directory", "path": "./.claude/plugins" } }
+  }
+}

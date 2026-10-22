@@ -1,0 +1,9 @@
+{
+  "name": "hello-lsp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The PHP language server of the dev stage (standard AI-07).",
+  "dependencies": {
+    "intelephense": "1.18.5"
+  }
+}

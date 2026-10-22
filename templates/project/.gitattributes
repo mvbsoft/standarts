@@ -1,0 +1,4 @@
+# project template 1.0.0 — a starting point: keep the first rule, add a line for a file type git
+# must treat differently. LF in every checkout, whatever core.autocrlf says on this machine: a
+# script or hook with CRLF line endings fails in sh (set: Illegal option -).
+* text=auto eol=lf

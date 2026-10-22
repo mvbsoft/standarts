@@ -1,0 +1,11 @@
+{
+  "name": "<repo>-tools",
+  "owner": { "name": "<owner>" },
+  "plugins": [
+    {
+      "name": "docker-lsp",
+      "source": "./docker-lsp",
+      "description": "Language servers that run in this repo's dev container (docker-compose.dev.yml), never on the host."
+    }
+  ]
+}

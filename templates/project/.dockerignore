@@ -1,0 +1,12 @@
+# project template 1.0.0 — a starting point (standard ENV-07): add the project's caches and data.
+.env
+.env.*
+!.env.example
+.git/
+.githooks/
+.claude/
+.deploy/
+build/
+.cache/
+docs/
+docker/backup/data/

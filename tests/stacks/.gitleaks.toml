@@ -1,0 +1,20 @@
+# The gitleaks settings of the stack samples (standard QLT-01): gitleaks reads .gitleaks.toml of the
+# folder it scans. SECRETS runs gitleaks dir, which reads every file of the working tree, also the
+# ones git ignores and never pushes; these are skipped: the local .env, the caches and the build
+# outputs that .gitignore names, and the git folder. A project with build secrets (.env.<name>,
+# BUILD_SECRETS) adds their names: .env.example is in git and stays scanned.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "local files that git ignores"
+paths = [
+  '''^\.env$''',
+  '''^\.git/''',
+  '''^\.cache/''',
+  '''^\.deploy/''',
+  '''^build/''',
+  '''^docker/backup/data/''',
+  '''^\.claude/settings\.local\.json$''',
+  '''^\.claude/worktrees/''',
+]

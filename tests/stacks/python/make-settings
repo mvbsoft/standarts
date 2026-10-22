@@ -1,0 +1,5 @@
+IMAGES = app
+LINT = ruff format --check . && ruff check . && pyright && shellcheck .githooks/pre-push $$(find . -name '*.sh' -not -path './.git/*' -not -path './.claude/worktrees/*') && lychee --offline --no-progress .
+TEST = pytest -q
+SECRETS = gitleaks dir --no-banner --no-color --redact -v .
+FIX = ruff format . && ruff check --fix --no-unsafe-fixes .

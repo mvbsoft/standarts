@@ -1,0 +1,86 @@
+#!/bin/sh
+# project template 1.0.0 — from the standard's templates/project; change it there, not here.
+# git runs this before every push (make bootstrap sets core.hooksPath). It runs make gates in this
+# working tree, which must hold the commit being pushed (standard QLT-02). The gates check the
+# files as they are, uncommitted changes included: in a terminal the hook lists those and asks
+# before it goes on; without one (an IDE, an agent) it lists them in a warning and goes on.
+# git push --no-verify skips it, for an emergency only.
+#
+# Usage:   git runs it as .githooks/pre-push <remote> <url>, with a line per pushed ref on stdin:
+#          <local ref> <local object> <remote ref> <remote object>.
+# Reads:   the refs on stdin; the working tree; /dev/tty when there is a terminal.
+# Output:  the output of make gates; the hook's own lines ("pre-push: …") on stderr, its list and
+#          question on the terminal when there is one.
+# Exit:    the status of make gates; 0 when no branch or tag with code is pushed; 1 when the hook
+#          stops the push.
+# Shell:   POSIX sh; needs git and make. set -u without -e on purpose: after the gates, whatever
+#          their status, the hook still checks HEAD and the working tree, then exits with it.
+set -u
+
+# ---- the working tree ------------------------------------------------------
+
+# snapshot
+#   The working tree as a git tree, in an index of its own (git's index stays as it is): a gate
+#   must only check, so the tree must be the same after the gates. What git cannot add (a
+#   repository inside this one without a commit) is left out; ignored files are not part of it.
+#   Outputs:   the tree's hash.
+#   Returns:   1 when no temporary folder could be made; else the status of git write-tree.
+snapshot() {
+  wt=$(mktemp -d) || return 1
+  cp "$(git rev-parse --git-path index)" "$wt/index" 2>/dev/null || :
+  GIT_INDEX_FILE=$wt/index git add -A --ignore-errors >/dev/null 2>&1
+  GIT_INDEX_FILE=$wt/index git write-tree
+  rm -rf "$wt"
+}
+
+# ---- main ------------------------------------------------------------------
+
+main() {
+  top=$(git rev-parse --show-toplevel)
+  head=$(git rev-parse 'HEAD^{tree}')
+  checked=
+  while read -r lref lsha rref _; do
+    case "$rref" in refs/heads/*|refs/tags/*) ;; *) continue ;; esac
+    case "$lsha" in *[!0]*) ;; *) continue ;; esac  # a deletion
+    # A branch or a tag is checked by the tree of its commit; a tag of something else holds no code.
+    tree=$(git rev-parse -q --verify "$lsha^{commit}^{tree}") || continue
+    [ "$tree" = "$head" ] \
+      || { echo "pre-push: the gates check the checked-out commit; check out ${lref#refs/*/} and push it from there" >&2; exit 1; }
+    checked=1
+  done
+  [ -n "$checked" ] || exit 0
+
+  # Paths as they are (core.quotePath=false), not quoted when they have non-ASCII letters.
+  files=$(git -c core.quotePath=false status --porcelain --untracked-files=normal)
+  if [ -n "$files" ]; then
+    if (exec < /dev/tty) 2>/dev/null; then
+      { echo "pre-push: not committed in $top:"; printf '%s\n' "$files" | sed 's/^/  /'
+        printf 'pre-push: the gates will check them together with the commit. Nothing forgotten to commit? Continue? [y/N] '
+      } > /dev/tty
+      answer=
+      read -r answer < /dev/tty || :
+      case "$answer" in y|Y) ;; *) echo "pre-push: stopped; nothing was pushed" >&2; exit 1 ;; esac
+    else
+      { echo "pre-push: WARNING: not committed in $top, and the gates check them together with the commit:"
+        printf '%s\n' "$files" | sed 's/^/  /'; } >&2
+    fi
+  fi
+
+  start=$(git rev-parse -q --verify HEAD)
+  before=$(snapshot) || before=
+  make --no-print-directory gates
+  # The status of the gates, for the end: the checks below run however the gates ended.
+  rc=$?
+  if [ "$(git rev-parse -q --verify HEAD)" != "$start" ]; then
+    echo "pre-push: HEAD moved during the push; nothing was pushed" >&2
+    exit 1
+  fi
+  after=$(snapshot) || after=
+  if [ -n "$before" ] && [ -n "$after" ] && [ "$after" != "$before" ]; then
+    echo "pre-push: the gates changed files (a gate must only check; if these are your own edits made during the push, push again): $(git -c core.quotePath=false diff --name-only "$before" "$after" | tr '\n' ' ' | sed 's/ $//')" >&2
+    exit 1
+  fi
+  exit "$rc"
+}
+
+main "$@"

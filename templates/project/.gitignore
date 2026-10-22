@@ -1,0 +1,10 @@
+# project template 1.0.0 — a starting point: add the project's own build outputs and caches.
+.env
+.env.*
+!.env.example
+.deploy/
+build/
+.cache/
+docker/backup/data/
+.claude/settings.local.json
+.claude/worktrees/

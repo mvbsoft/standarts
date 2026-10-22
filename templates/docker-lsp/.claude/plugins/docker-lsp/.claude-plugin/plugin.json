@@ -1,0 +1,28 @@
+{
+  "name": "docker-lsp",
+  "version": "1.1.0",
+  "description": "Language servers that run inside this repo's dev container, never on the host.",
+  "lspServers": {
+    "pyright": {
+      "command": "sh",
+      "args": ["-c", "d=\"$1\"; shift; docker compose -f \"$d/docker-compose.dev.yml\" --project-directory \"$d\" up -d --no-build --no-recreate dev >/dev/null 2>&1; exec docker compose -f \"$d/docker-compose.dev.yml\" --project-directory \"$d\" exec -T dev \"$@\"", "docker-lsp", "${CLAUDE_PROJECT_DIR}", "pyright-langserver", "--stdio"],
+      "extensionToLanguage": { ".py": "python", ".pyi": "python" },
+      "startupTimeout": 120000,
+      "maxRestarts": 2
+    },
+    "typescript": {
+      "command": "sh",
+      "args": ["-c", "d=\"$1\"; shift; docker compose -f \"$d/docker-compose.dev.yml\" --project-directory \"$d\" up -d --no-build --no-recreate dev >/dev/null 2>&1; exec docker compose -f \"$d/docker-compose.dev.yml\" --project-directory \"$d\" exec -T dev \"$@\"", "docker-lsp", "${CLAUDE_PROJECT_DIR}", "typescript-language-server", "--stdio"],
+      "extensionToLanguage": { ".ts": "typescript", ".tsx": "typescriptreact", ".js": "javascript", ".jsx": "javascriptreact", ".mts": "typescript", ".cts": "typescript", ".mjs": "javascript", ".cjs": "javascript" },
+      "startupTimeout": 120000,
+      "maxRestarts": 2
+    },
+    "php": {
+      "command": "sh",
+      "args": ["-c", "d=\"$1\"; shift; docker compose -f \"$d/docker-compose.dev.yml\" --project-directory \"$d\" up -d --no-build --no-recreate dev >/dev/null 2>&1; exec docker compose -f \"$d/docker-compose.dev.yml\" --project-directory \"$d\" exec -T dev \"$@\"", "docker-lsp", "${CLAUDE_PROJECT_DIR}", "intelephense", "--stdio"],
+      "extensionToLanguage": { ".php": "php" },
+      "startupTimeout": 120000,
+      "maxRestarts": 2
+    }
+  }
+}

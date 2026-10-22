@@ -1,0 +1,174 @@
+# project template 1.0.0 — a starting point (standard ENV-01, ENV-02, ENV-03): keep the structure,
+# change the services. The stage and prod files differ only in the name: line; everything else
+# that differs comes from the server .env. No build: here: make stage / make prod build the own
+# images from the commit (standard ENV-09).
+name: <repo>-prod
+x-hard: &hard
+  restart: always
+  read_only: true
+  init: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+services:
+  app:
+    <<: *hard
+    # An own image (IMAGES in the Makefile): <repo>-<name>:${IMAGE_TAG:?}, built on this server.
+    image: <repo>-app:${IMAGE_TAG:?}
+    ports: ["127.0.0.1:${APP_PORT:?}:8000"]
+    environment:
+      # Its own role, never the superuser (db creates it: below).
+      DATABASE_URL: "postgresql://${APP_DB_USER:?}:${APP_DB_PASSWORD:?}@db:5432/postgres"
+      LOG_LEVEL: "${LOG_LEVEL:?}"
+    tmpfs: [/tmp]
+    healthcheck: {test: ["CMD", "<a command that checks the application, with authentication>"], interval: 10s, timeout: 5s, retries: 6}
+    depends_on: {db: {condition: service_healthy}}
+    # The limits from .env (standard OPS-02); memswap_limit equal to the memory: no swap on top.
+    deploy: {resources: {limits: {cpus: "${APP_CPUS:?}", memory: "${APP_MEM:?}"}}}
+    memswap_limit: "${APP_MEM:?}"
+  db:
+    <<: *hard
+    image: <postgres image>:<version>@sha256:<digest>
+    user: "<the image's postgres uid>:<gid>"
+    # The superuser's password is for db and backup only; the application has a role of its own.
+    environment:
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?}"
+      APP_DB_USER: "${APP_DB_USER:?}"
+      APP_DB_PASSWORD: "${APP_DB_PASSWORD:?}"
+    volumes: ["db:<the image's data path>"]
+    tmpfs: [/tmp, /var/run/postgresql]
+    # The derived numbers from .env (docs/how-to/tuning.md); postgresql.conf cannot read variables.
+    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:?}", "-c", "effective_cache_size=${DB_EFFECTIVE_CACHE_SIZE:?}"]
+    shm_size: 256m
+    stop_grace_period: 1m
+    # Healthy when the database answers and the application's own role APP_DB_USER, never a
+    # superuser, logs in with APP_DB_PASSWORD. Until then the check creates that role, or sets its
+    # password and rights again: on a new volume, on a database made before the role, after a
+    # changed APP_DB_PASSWORD. The role owns what the migrations create in the schema public. Its
+    # login goes to the container's own address, where PostgreSQL checks the password (the image
+    # trusts the socket and 127.0.0.1, which the check uses as the superuser).
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          pg_isready -q -U postgres || exit 1
+          [ "$$APP_DB_USER" != postgres ] || { echo "APP_DB_USER must not be the superuser postgres"; exit 1; }
+          [ "$$(PGPASSWORD="$$APP_DB_PASSWORD" psql -X -tA -h "$$(hostname)" -U "$$APP_DB_USER" -d postgres \
+            -c 'SELECT NOT rolsuper FROM pg_roles WHERE rolname = current_user' 2>/dev/null)" != t ] || exit 0
+          psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
+          \getenv u APP_DB_USER
+          \getenv p APP_DB_PASSWORD
+          SELECT format('CREATE ROLE %I', :'u') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'u') \gexec
+          SELECT format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', :'u', :'p') \gexec
+          SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'u') \gexec
+          SQL
+          PGPASSWORD="$$APP_DB_PASSWORD" psql -X -tA -h "$$(hostname)" -U "$$APP_DB_USER" -d postgres -c 'SELECT 1' >/dev/null || exit 1
+      interval: 5s
+      timeout: 4s
+      retries: 3
+      # A new volume (initdb and the role) or a crash recovery: failures in this time do not count.
+      start_period: 2m
+      start_interval: 2s
+    deploy: {resources: {limits: {cpus: "${DB_CPUS:?}", memory: "${DB_MEM:?}"}}}
+    memswap_limit: "${DB_MEM:?}"
+  backup:
+    <<: *hard
+    image: <repo>-backup:${IMAGE_TAG:?}
+    # Static, so restic records every set under one host (the standard's catalog/README.md, source
+    # [13]); one per environment.
+    hostname: <repo>-backup-${PROJECT_ENV:?}
+    # Starts as root only to give an empty or marked backup folder (BACKUP_DIR) and /drill to the
+    # backup user (BACKUP_USER, docker/backup/Dockerfile), then drops to it (docker/backup/backup.sh).
+    cap_add: [CHOWN, SETUID, SETGID]
+    # A daily run stopped halfway is made up at the next start; this lets most runs finish.
+    stop_grace_period: 2m
+    # The data path: the base image declares it a VOLUME; tmpfs keeps Docker from making an
+    # anonymous volume there. The drill's server runs on /drill.
+    tmpfs: [/tmp, "<the image's data path>"]
+    environment:
+      BACKUP_STORES: "db:postgres"
+      BACKUP_DB_USER: "${BACKUP_DB_USER:?}"
+      BACKUP_DB_PASSWORD: "${BACKUP_DB_PASSWORD:?}"
+      BACKUP_DB_ADMIN_PASSWORD: "${DB_PASSWORD:?}"
+      BACKUP_TIME: "${BACKUP_TIME:?}"
+      BACKUP_KEEP_DAILY: "${BACKUP_KEEP_DAILY:?}"
+      BACKUP_KEEP_WEEKLY: "${BACKUP_KEEP_WEEKLY:?}"
+      BACKUP_DRILL_DAY: "${BACKUP_DRILL_DAY:?}"
+      BACKUP_MAX_AGE: "${BACKUP_MAX_AGE:?}"
+      BACKUP_COPY_TO: "${BACKUP_COPY_TO-}"
+      BACKUP_COPY_PASSWORD: "${BACKUP_COPY_PASSWORD:?}"
+      BACKUP_COPY_LOGIN: "${BACKUP_COPY_LOGIN-}"
+      BACKUP_COPY_LOGIN_PASSWORD: "${BACKUP_COPY_LOGIN_PASSWORD:?}"
+      BACKUP_COPY_READ: "${BACKUP_COPY_READ:?}"
+      # The host path, for the messages; the file is mounted below.
+      BACKUP_COPY_CACERT: "${BACKUP_COPY_CACERT:?}"
+      BACKUP_NOTIFY_URL: "${BACKUP_NOTIFY_URL-}"
+      BACKUP_HEARTBEAT_URL: "${BACKUP_HEARTBEAT_URL-}"
+      DISK_RESERVE: "${DISK_RESERVE:?}"
+    volumes:
+      - "${BACKUP_DIR:-./docker/backup/data}:/backup"
+      - "backup-drill:/drill"
+      - "${BACKUP_COPY_CACERT:?}:/etc/backup-copy/cacert:ro"
+    healthcheck: {test: ["CMD", "backup", "health"], interval: 30s, timeout: 10s, retries: 2}
+    depends_on: {db: {condition: service_healthy}}
+    deploy: {resources: {limits: {cpus: "${BACKUP_CPUS:?}", memory: "${BACKUP_MEM:?}"}}}
+    memswap_limit: "${BACKUP_MEM:?}"
+  # The health of this project's containers and the free disk space, as JSON for a monitor
+  # (docs/how-to/operations.md, "Monitoring"). Docker only through status-proxy.
+  status:
+    <<: *hard
+    image: <repo>-status:${IMAGE_TAG:?}
+    # The server's front proxy forwards https://<host>/status (TLS only) here, as for the site.
+    ports: ["127.0.0.1:${STATUS_PORT:?}:8080"]
+    environment:
+      # The name Compose really uses (also with -p): the containers it reports.
+      STATUS_PROJECT: "${COMPOSE_PROJECT_NAME}"
+      STATUS_TOKEN: "${STATUS_TOKEN:?}"
+      STATUS_PUSH_URL: "${STATUS_PUSH_URL-}"
+      STATUS_PUSH_FAIL_URL: "${STATUS_PUSH_FAIL_URL-}"
+      STATUS_PUSH_INTERVAL: "${STATUS_PUSH_INTERVAL:?}"
+      DISK_WARN: "${DISK_WARN:?}"
+      DISK_RESERVE: "${DISK_RESERVE:?}"
+    # Free space only: read-only, and the folder is the backup user's (mode 700), so this service
+    # measures it but cannot read the sets. / inside the container is Docker's data disk.
+    volumes: ["${BACKUP_DIR:-./docker/backup/data}:/disk/backup:ro"]
+    networks: [default, status-proxy]
+    healthcheck: {test: ["CMD", "status", "health"], interval: 30s, timeout: 10s, retries: 3, start_period: 30s, start_interval: 2s}
+    depends_on: {status-proxy: {condition: service_healthy}}
+    deploy: {resources: {limits: {cpus: "${STATUS_CPUS:?}", memory: "${STATUS_MEM:?}"}}}
+    memswap_limit: "${STATUS_MEM:?}"
+  # Reads the Docker socket for status only: GET of the container list and of this project's
+  # containers by name (<project>-<service>-<n>); every other path is refused (403), every other
+  # method too (405). Alternatives stay in one group (?:a|b): the proxy wraps the regex in ^…$, and
+  # an ungrouped a|b would mean "starts with a" or "ends with b". The :ro does not limit the API;
+  # the allowlist does.
+  status-proxy:
+    <<: *hard
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    # nobody, in the group that owns the socket on this server (DOCKER_GID of .env; every command
+    # that starts status-proxy refuses another: docs/how-to/operations.md, "When something fails").
+    user: "65534:${DOCKER_GID:?}"
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=status
+      - -allowhealthcheck
+      - -allowGET=(?:/v1\.[0-9]+)?/containers/(?:json|${COMPOSE_PROJECT_NAME}-[a-z0-9_-]+-[0-9]+/json)
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"]
+    networks: [status-proxy]
+    healthcheck: {test: ["CMD", "/healthcheck"], interval: 30s, timeout: 5s, retries: 3, start_period: 10s, start_interval: 2s}
+    deploy: {resources: {limits: {cpus: "${STATUS_PROXY_CPUS:?}", memory: "${STATUS_PROXY_MEM:?}"}}}
+    memswap_limit: "${STATUS_PROXY_MEM:?}"
+volumes:
+  db: {}
+  backup-drill: {}
+networks:
+  # Only status and its proxy: no way out, no published port.
+  status-proxy: {internal: true}
+# The backup and status templates' own exceptions (standard templates/README.md): they need no
+# registry row.
+x-check-compose-allow:
+  backup:
+    user: "starts as root only to give the BACKUP_DIR bind mount, when it is empty or marked as the backup folder, and /drill to the backup user (BACKUP_USER, docker/backup/Dockerfile), then every command runs as that user without capabilities (docker/backup/backup.sh)"
+    cap_add: "CHOWN gives BACKUP_DIR and /drill to the backup user (BACKUP_USER, docker/backup/Dockerfile); SETUID and SETGID for gosu (docker/backup/backup.sh)"
+  status-proxy:
+    docker-sock: "the socket proxy of the status service (docs/how-to/operations.md, Monitoring): user nobody in the socket's group (DOCKER_GID), reachable only from status on an internal network, it forwards only GET of the container list and of this project's containers by name and refuses every other request (tested by the standard's tests/status)"

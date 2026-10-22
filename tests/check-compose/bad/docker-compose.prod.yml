@@ -1,0 +1,24 @@
+name: fixture-prod
+x-hard: &hard
+  restart: always
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+  deploy: {resources: {limits: {cpus: "1", memory: 512M}}}
+services:
+  app:
+    <<: *hard
+    build: {context: ., dockerfile: docker/app/Dockerfile, target: runtime}
+    ports: ["127.0.0.1:${APP_PORT:?}:8000"]
+    environment: {DB_PASSWORD: "${DB_PASSWORD:?}"}
+    healthcheck: {test: ["CMD", "true"]}
+    depends_on: {db: {condition: service_healthy}}
+  db:
+    <<: *hard
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    environment: {POSTGRES_PASSWORD: "${DB_PASSWORD:?}"}
+    healthcheck: {test: ["CMD", "pg_isready"]}
+x-check-compose-allow:
+  db:
+    user: "the official image starts as root and drops privileges itself"

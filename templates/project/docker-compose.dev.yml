@@ -1,0 +1,122 @@
+# project template 1.0.0 — a starting point (standard ENV-01): keep the structure, change the services.
+# Code is mounted at the same absolute path inside and outside; the dev container runs as the host user.
+name: <repo>-dev${DEV_SUFFIX:-}
+# The log rotation of stage and prod (json-file, 10 MB × 3 per container) here too.
+x-logging: &logging
+  logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+services:
+  dev:
+    <<: *logging
+    # A build secret of the Makefile (BUILD_SECRETS = <id>=<file>) reaches the dev build too:
+    # secrets: [<id>] in build:, and <id>: {file: <file>} in the top-level secrets: at the end,
+    # one of each per pair, so a step of the base stage that reads it builds in dev as on a server
+    # (make dev refuses when they differ).
+    build: {context: ., dockerfile: docker/app/Dockerfile, target: dev}
+    user: "${HOST_UID:?run make dev}:${HOST_GID:?run make dev}"
+    working_dir: ${PROJECT_DIR:?run make dev}
+    volumes: ["${PROJECT_DIR:?run make dev}:${PROJECT_DIR:?run make dev}"]
+    command: ["sleep", "infinity"]
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    # ${X-default}: an empty value (a second copy) lets Docker pick a free port.
+    ports: ["127.0.0.1:${APP_PORT-8000}:8000"]
+    environment: &dev-environment
+      # The application's own role, as on a server (db creates it: below).
+      DATABASE_URL: "postgresql://${APP_DB_USER:?}:${APP_DB_PASSWORD:?}@db:5432/postgres"
+      LOG_LEVEL: "${LOG_LEVEL:?}"
+      # trivy's vulnerability database: the dev home (/) is not writable for the host user; a
+      # folder of the project, in .gitignore and .dockerignore, kept when the container is recreated.
+      TRIVY_CACHE_DIR: "${PROJECT_DIR:?run make dev}/.cache/trivy"
+    depends_on: &dev-depends-on {db: {condition: service_healthy}}
+  # make mutation and make mutation-diff: the dev image, code and environment in a container of its
+  # own with the limits of .env, started by docker compose run --rm and removed afterwards.
+  # Mutation testing (QLT-01, R, the owner's choice): remove this service when the project does not
+  # use it, with the parts the standard's templates/README.md lists ("Mutation testing declined").
+  mutation:
+    <<: *logging
+    profiles: [mutation]
+    # The image make dev builds for dev (Compose names it <project>-<service>): nothing is built twice.
+    image: <repo>-dev${DEV_SUFFIX:-}-dev
+    pull_policy: never
+    user: "${HOST_UID:?run make dev}:${HOST_GID:?run make dev}"
+    working_dir: ${PROJECT_DIR:?run make dev}
+    volumes: ["${PROJECT_DIR:?run make dev}:${PROJECT_DIR:?run make dev}"]
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    cpus: ${MUTATION_CPUS:-2}
+    mem_limit: ${MUTATION_MEM:-4g}
+    environment: *dev-environment
+    depends_on: *dev-depends-on
+  db:
+    <<: *logging
+    image: <postgres image>:<version>@sha256:<digest>
+    environment:
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?}"
+      APP_DB_USER: "${APP_DB_USER:?}"
+      APP_DB_PASSWORD: "${APP_DB_PASSWORD:?}"
+    volumes: ["db:<the image's data path>"]
+    # As in stage and prod: healthy once the application's role logs in; the check creates it
+    # or sets its password and rights again (docker-compose.stage.yml says why and how).
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          pg_isready -q -U postgres || exit 1
+          [ "$$APP_DB_USER" != postgres ] || { echo "APP_DB_USER must not be the superuser postgres"; exit 1; }
+          [ "$$(PGPASSWORD="$$APP_DB_PASSWORD" psql -X -tA -h "$$(hostname)" -U "$$APP_DB_USER" -d postgres \
+            -c 'SELECT NOT rolsuper FROM pg_roles WHERE rolname = current_user' 2>/dev/null)" != t ] || exit 0
+          psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL'
+          \getenv u APP_DB_USER
+          \getenv p APP_DB_PASSWORD
+          SELECT format('CREATE ROLE %I', :'u') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'u') \gexec
+          SELECT format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', :'u', :'p') \gexec
+          SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'u') \gexec
+          SQL
+          PGPASSWORD="$$APP_DB_PASSWORD" psql -X -tA -h "$$(hostname)" -U "$$APP_DB_USER" -d postgres -c 'SELECT 1' >/dev/null
+      interval: 2s
+      retries: 30
+    security_opt: ["no-new-privileges:true"]
+  # With tests against a real database (TYP-01): the tests' own database, on tmpfs, so it is empty
+  # at every start and the tests never touch db. dev (and so mutation) then gets in its environment
+  #   TEST_DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:?}@db-test:5432/postgres"
+  # and in its depends_on db-test: {condition: service_healthy}.
+  # db-test:
+  #   <<: *logging
+  #   image: <the same image as db>
+  #   environment: {POSTGRES_PASSWORD: "${DB_PASSWORD:?}"}
+  #   tmpfs: ["<the image's data path>"]
+  #   healthcheck: {test: ["CMD", "pg_isready", "-U", "postgres"], interval: 2s, retries: 30}
+  #   security_opt: ["no-new-privileges:true"]
+  backup:
+    <<: *logging
+    profiles: [backup]
+    build: {context: ., dockerfile: docker/backup/Dockerfile, target: dev}
+    hostname: <repo>-backup-dev
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    # Starts as root only to give /backup and /drill to the backup user (BACKUP_USER).
+    cap_add: [CHOWN, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp, "<the image's data path>"]
+    # No off-server copy in dev: BACKUP_COPY_* belong to the servers.
+    environment:
+      BACKUP_STORES: "db:postgres"
+      BACKUP_DB_USER: "${BACKUP_DB_USER:?}"
+      BACKUP_DB_PASSWORD: "${BACKUP_DB_PASSWORD:?}"
+      BACKUP_DB_ADMIN_PASSWORD: "${DB_PASSWORD:?}"
+      BACKUP_KEEP_DAILY: "${BACKUP_KEEP_DAILY:?}"
+      BACKUP_KEEP_WEEKLY: "${BACKUP_KEEP_WEEKLY:?}"
+      DISK_RESERVE: "${DISK_RESERVE:?}"
+    # Dev sets are test sets: they live in the volume backup-data, which only
+    # docker compose --profile backup down -v removes (without the profile it stays); BACKUP_DIR is
+    # for stage and prod.
+    volumes: ["backup-data:/backup", "backup-drill:/drill"]
+    depends_on: {db: {condition: service_healthy}}
+volumes:
+  db: {}
+  backup-data: {}
+  backup-drill: {}
+# The files of the build secrets (BUILD_SECRETS in the Makefile), relative to this folder:
+# secrets:
+#   <id>: {file: <file>}
