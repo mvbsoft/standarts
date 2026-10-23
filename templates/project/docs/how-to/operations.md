@@ -47,7 +47,8 @@ server" below; otherwise it prints `space: <free> free where Docker keeps the im
 external networks and refuses a default-named compose file in a parent folder; checks the files
 (`parity`, `check-compose`); builds every own image (`IMAGES` in the `Makefile` settings) that this
 server does not have yet for the content of that commit, and pulls the other images it lacks;
-saves the logs of every container it may replace ("Logs of replaced containers" below); runs
+saves the logs of every container it may replace ("Logs of replaced containers" below); makes a
+backup set first (not on a clone's first deploy; a failure asks, as for the free space); runs
 the migrations from the new image (on every deploy, so a migration already applied must change
 nothing when it runs again), as `sh -c "<MIGRATE>"` in a one-off container of `APP` that bypasses
 the image's `ENTRYPOINT`, so the runtime image needs `/bin/sh`; replaces the containers whose image or configuration changed, leaves
@@ -55,7 +56,8 @@ the rest running and waits until every service but `backup` is healthy (an unhea
 prints a `WARNING`); records the deploy and prints `OK: stage runs <commit>`; removes the images
 of older deploys ("Images on the server" below); checks the tuning last, so a failed check fails
 the command while the history names the commit that runs. A failure in any step stops the command, and what already runs keeps
-running (nothing is replaced before the images and the migration have succeeded). The update has a few seconds
+running (nothing but a dependency the migration needs is replaced before the images and the
+migration have succeeded). The update has a few seconds
 of downtime while a container is replaced.
 
 The application logs in to the database with its own role (`APP_DB_USER`, `APP_DB_PASSWORD`),
@@ -124,7 +126,9 @@ It removes only images named that way; other images, and one a container still u
   by itself: it says how much is needed, how much there is and what can go wrong, and asks. In a
   terminal it asks `Go on anyway? [y/N]` and only `y` or `yes` goes on; without a terminal (an agent,
   a script) it stops, unless `RISK=yes` is on the command line of that `make` (as `CONFIRM=yes`
-  for a restore, it counts nowhere else). An agent adds `RISK=yes` only after the owner's yes.
+  for a restore, it counts nowhere else). One `RISK=yes` accepts every warned estimate of that run,
+  a failed backup before the migration too ("When something fails"); an agent names them all to
+  the owner and adds `RISK=yes` only after the owner's yes.
   `make restart` and `make rollback` count only the
   own images of their commit that this machine lacks, because only those can be built: with none
   missing they check nothing and ask nothing (`space: not checked: …`); `make stage`,
@@ -150,9 +154,14 @@ folder), `make dev` and every command in the dev container refuse, and `DEV_SUFF
 empty `APP_PORT=` in its `.env` gives it its own (`NAME=` counts only while there is no `.env`).
 To move the environment
 to this clone, stop it in the other folder with `docker compose -p <project> down` (the volumes
-stay), then `make stage` (`make prod`) here. Volumes carry no folder: after that `down`, or when
+stay); before the first `make` here, copy that clone's `.deploy/` and backup folder here
+(`sudo cp -a`: the sets belong to the backup user), or set `BACKUP_DIR` to the old folder's
+absolute path; then `make stage` (`make prod`) here. Without `.deploy/history` the first deploy
+makes no set before the migration (`backup: none before the migration: nothing was deployed from
+this clone yet`) and `make rollback` has nothing to go back to; a relative `BACKUP_DIR` (the
+default) leaves the sets in the old clone. Volumes carry no folder: after that `down`, or when
 only the volumes of an earlier clone are left, nothing can tell whose they are; the first deploy
-of a clone then uses them and says so (`WARNING: the volumes of <project> exist, but no container
+of a clone without `.deploy/history` then uses them and says so (`WARNING: the volumes of <project> exist, but no container
 of it: …`). Dev can have several copies only because each gets its own `DEV_SUFFIX`.
 
 ## Logs of replaced containers
@@ -333,6 +342,11 @@ builds them again first (`rollback: building the images of <sha> again (they wer
 the current `.env`. The next `make stage` / `make prod` returns to the branch, so fix the problem in
 the code first.
 
+A rollback does not undo data: what the migrations wrote stays. The set the deploy made before them
+(`make backup-list` names it) brings the data back with `make restore SET=<name>` (what was written
+after it is lost). Restore it, or copy it out of `BACKUP_DIR`, before another set is made that day
+(the next deploy's, the daily one): this server keeps only the newest set of each day.
+
 ## Everyday checks
 
 - `make status`: the running commit and the health of every service.
@@ -370,6 +384,7 @@ superuser's `DB_PASSWORD` is also changed inside the database first (the templat
 ## Backups and moving to a new server
 
 How the backup works, how to check a restore and how to restore: [backups](backups.md). To move to a
-new server: set it up as in "The first server from scratch" up to step 4, restore the data from the
-off-server copy as [backups](backups.md#a-new-server-from-the-off-server-copy) says, then step 5,
-`make prod` (or `make stage`).
+new server: set it up as in "The first server from scratch" up to step 4, move the data through the
+off-server copy as [backups](backups.md#a-new-server-from-the-off-server-copy) says (a last set
+made on the old server after its writes stopped, restored by its name, then the old server's
+`backup` stopped), then step 5, `make prod` (or `make stage`).

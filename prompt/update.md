@@ -1,10 +1,10 @@
 # Update: move a project to a newer release
 
 The project's registry names the release it was last reconciled against (`Standard:` in
-`docs/reference/project-registry.md`). You bring it to the release in `$STANDARD`. An update only
-applies the new release: the owner's answers in section 0 of the registry stay as they are and are
-not asked again. To change one, the owner sets the project up again ([`start.md`](start.md)
-section 2).
+`docs/reference/project-registry.md`). You bring it to the release in `$STANDARD`. An update
+applies the new release: the owner's answers in section 0 of the registry stay as they are unless
+the owner revisits one (step 2). To go through all of them, the owner sets the project up again
+([`start.md`](start.md) section 2).
 
 1. Read the `Standard:` field. Read `$STANDARD/CHANGELOG.md` from the entry after that release up to
    and including the target release. Collect every rule ID and template the entries name, and
@@ -16,9 +16,11 @@ section 2).
    re-audited, unless a fact you collect shows that one of them is broken now; record that as a
    finding too. A part the registry records as left out by the owner (mutation testing, health
    monitoring, a check set to `off`, for example) stays out: its changes are not applied, and
-   its absence is not a finding. Ask the owner only about what the new release adds and the
-   registry has no answer for, as [`new.md`](new.md) step 1 asks it, and record the answers in
-   section 0.
+   its absence is not a deviation. Ask only the questions of [`questions.md`](questions.md) that
+   section 0 has no answer for (those the new release adds), as [`start.md`](start.md) section 3
+   says. Then offer to revisit the earlier answers: list them, and ask again each one the owner
+   names, with the recorded answer as a reference; the plan adds or removes the parts a changed
+   answer changes, as when the project is set up again. Record every answer in section 0.
 3. In the plan, compare each project file that came from a template with that template in the
    release named in `Standard:`. A **verbatim** template that changed is copied again, with its
    placeholders filled as before and, for the `Makefile`, the project's settings block and its

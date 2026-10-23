@@ -28,8 +28,10 @@ the permission settings of one tool, because every agent has to see them:
 - A destructive command (`docker compose down -v`, `docker volume rm`, `docker volume prune`,
   `git push --no-verify`, `make restore`, a push or merge into `STAGE_BRANCH` or `PROD_BRANCH`,
   deleting data) and a `make` command that goes on despite a warned estimate (`RISK=yes`) are run
-  only after the owner's explicit yes in that session, for that command. This is the one rule for
-  these commands; other documents link to it. The exception is a proof copy that the standard's
+  only after the owner's explicit yes in that session, for that command. One `RISK=yes` accepts
+  every warning of that run, also one not yet seen, such as a failed backup before the migration,
+  so before asking the agent names to the owner each warning the command can give. This is the one
+  rule for these commands; other documents link to it. The exception is a proof copy that the standard's
   prompt sets up (`scripts/proof.sh`): inside it, a push to the copy's own bare remote (any branch,
   with or without uncommitted files), `git push --no-verify`, `make restore … CONFIRM=yes` in its
   server clones, and changing or deleting the data of its own stacks and volumes (`DROP TABLE` in

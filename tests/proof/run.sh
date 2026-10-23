@@ -14,7 +14,8 @@
 #   C. a folder without .git (new mode) and no git identity: the copy gets its own git with the
 #      branches of the Makefile; an own image of the commit there before the first deploy is
 #      noted; a deploy that fails before its first start, with no backup image built; clean refuses a stack of a proof name that runs from another folder and leaves it
-#      alone, then removes everything else.
+#      alone, then removes everything else;
+#   D. a stray .proof in an ordinary folder: clean in a child of it refuses and removes nothing.
 # Usage: sh tests/proof/run.sh [<proof.sh>] (another proof.sh, to see the test fail on a broken one).
 # Everything it creates in Docker is named stdproof*; it removes all of it on exit, and nothing
 # else, so other tests' objects survive a parallel run.
@@ -330,5 +331,18 @@ docker rm -f stdproof-foreign >/dev/null
 expect_ok in_dir "$new" sh "$proof" clean
 [ ! -e "$tn" ] || { ls -la "$tn"; fail "clean left $tn"; }
 nothing_left "after clean of the copy without git"
+
+step "D. a stray .proof in an ordinary folder: clean in a child of it refuses"
+# The .proof of a real copy, copied into a folder that is not that copy: only its folder name and
+# remote.git tell it apart.
+stray=$tmp/stray
+mkdir -p "$stray/sub"
+printf 'stdproof\n%s\n' "$src" > "$stray/.proof"
+printf 'keep\n' > "$stray/keep.txt"
+expect_fail in_dir "$stray/sub" sh "$proof" clean
+has "$stray has a file .proof, but is not the proof copy it names"
+has "nothing was changed"
+[ -f "$stray/keep.txt" ] && [ -d "$stray/sub" ] && [ -f "$stray/.proof" ] || fail "clean in a child of $stray removed files of it"
+rm -rf "$stray"
 
 step "OK"

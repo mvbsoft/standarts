@@ -40,7 +40,7 @@ Standard: <version, for example v1.0.0> · Last reconciled: <date, commit>
 
 ## 0. Profile and decisions
 Type: service | library | frontend | pipeline | ML · Languages: … · Environments: dev, [stage], [prod]
-| Question | Answer | Why |
+| ID | Answer | Why | Date |
 
 ## A. Components and tools | Component | Defined in | Problem it solves | Environments | Persistent? Backed up? |
 
@@ -50,13 +50,16 @@ Type: service | library | frontend | pipeline | ML · Languages: … · Environm
 The sections keep the letters 0, A and E, so that every reference to "section E" stays valid. No
 other columns are added; if more is needed, it is a link to a reference page.
 
-- **Section 0** is where the owner's answers live. When the standard is applied, the agent asks the
-  owner what to switch on and what off, and every answer is written here with its reason: for each
-  mandatory check (`LINT`, `TEST`, `SECRETS`) its command or `off`; the environments; the backup
-  folder; the folder for archived logs; mutation testing, the agent's browser
-  ([AI-08](05-agents.md)) and health monitoring ([OPS-04](03-operations.md)), each yes or no. An update reads these answers and does not ask
-  again; it asks only about what the new release added after they were given. To change an answer,
-  the owner sets the project up again ([`prompt/start.md`](../prompt/start.md)): that goes through
+- **Section 0** is where the owner's answers live: one row for each answer, with its ID (`S-nn` for a
+  question of [TYP-01](07-project-types.md#the-choices); for an answer outside them a short name
+  such as `name`, `scope` or `data stores`, or an owner decision of the audit named by its
+  finding), the answer (on or off,
+  or the value: a command, a folder, a branch), the reason and the date; `S-01` and `S-02` are the
+  profile line above it. A part the owner declined
+  is a row here, not a deviation in section E. An update reads these answers and does not ask
+  again; it asks only about what the new release added after they were given, then offers to revisit
+  the earlier answers one by one ([`prompt/update.md`](../prompt/update.md)). To go through all of
+  them, the owner sets the project up again ([`prompt/start.md`](../prompt/start.md)): that asks
   all the questions afresh, with the current answers shown for reference, and brings the project to
   the new answers by adding or removing parts.
 - **Section A** lists every component, and every tool with the problem it solves

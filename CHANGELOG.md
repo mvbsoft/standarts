@@ -8,8 +8,12 @@ that projects must act on; the update prompt re-audits the rules and templates n
 - First version of the standard: `GUIDE.md`, the whole standard on one page; rules `PRN`, `ENV`,
   `OPS` (with `OPS-04`, health monitoring), `QLT`, `AI` (chapter `05-agents`: a core for any agent
   and the Claude Code adapter), `DOC`, `TYP`; "Known limits" in `standard/README.md`; decisions
-  D-0001 to D-0027; the prompts `start` (modes: new, adopt, update, set up again), `adopt`, `new`,
+  D-0001 to D-0028; the prompts `start` (modes: new, adopt, update, set up again), `adopt`, `new`,
   `update`; `scripts/proof.sh`, the proof copy for stage and prod on one machine.
+- The interactive setup (D-0028): the core every project has, and the owner's choices `S-01` to
+  `S-24` in TYP-01 with their defaults; the bank of questions `prompt/questions.md`, asked one at a
+  time in the owner's language; the answers in registry section 0, where a declined part is not a
+  deviation; the new meaning of `M`, `R` and `O`.
 - The template `project` 1.0.0:
   - checks in two floors: base commands `lint`, `test`, `e2e`, `security`, `infra` and group
     commands `gates` (the pre-push hook) and `verify`, with a summary line per check (`ok`, `FAIL`,
@@ -17,8 +21,8 @@ that projects must act on; the update prompt re-audits the rules and templates n
     `mutation`, `mutation-diff` and `image-scan` by hand; `docker build --check` in `lint`;
   - own images built on the server by `make stage` / `make prod` (D-0025); every third-party image
     pinned as `<image>:<version>@sha256:<digest>`; one copy of stage and of prod per machine;
-    a free-space check before deploy, images, rollback, restart, restore and the backup drill
-    (`DISK_RESERVE`); the
+    a free-space check before deploy, images, rollback, restart, restore, a backup, the backup
+    drill and the log archive (`DISK_RESERVE`); the
     logs of replaced containers kept in `LOG_ARCHIVE_DIR`; `.env` and build secrets readable by
     the owner only; the application's own database role (`APP_DB_USER`), never the superuser; a
     backup set right before the migration of a server deploy (with the `backup` service, not on a

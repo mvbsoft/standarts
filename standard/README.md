@@ -13,9 +13,14 @@ change, so a project registry, a decision or a report can point at a rule.
 
 | Mark | Meaning |
 |---|---|
-| **M** | mandatory |
-| **R** | recommended; declining it is recorded in the registry with a reason |
-| **O** | optional |
+| **M** | the core, which every project has and nobody is asked about, or strongly advised: the agent explains in detail what declining it risks |
+| **R** | advised |
+| **O** | offered |
+
+What is the core and what the owner chooses, with the default of each choice, is
+[TYP-01](07-project-types.md#the-core). A part the owner declines is recorded in registry section 0
+with its reason ([DOC-03](06-docs.md#doc-03-component-registry-m)); an audit and an update do not
+count it as a deviation.
 
 ## Sections
 

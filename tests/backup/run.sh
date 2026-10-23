@@ -5,7 +5,7 @@
 # and fail (also of a named set), rotation, too little free space, the write-only copy on an
 # append-only rest-server that the server's login cannot delete from, copy-check and its failures,
 # the read check of the copy, restore --check and --plan, a missing copy that a restore never
-# creates, restore from the copy, the safety set before a restore, the CONFIRM guard, list and
+# creates, restore from the copy (also of a set a planted snapshot shadows), the safety set before a restore, the CONFIRM guard, list and
 # status, one store of two (--store), the health rules, a killed daily run, the notification and
 # its tool, the heartbeat after a good daily run only, the refused superuser and owner roles,
 # non-root and read_only. The images are pinned by tag and digest; a missing one is pulled.
@@ -645,6 +645,24 @@ has "copy: fetched db/$s8 from /backup/.copy"
 has "restore: db OK: equal to the manifest of $s8"
 lacks "removing the unfinished"
 [ -z "$(inb 'ls -d /backup/db/.fetch-* 2>/dev/null')" ] || fail "the fetched set is left"
+
+step "i5. a snapshot the server's login adds with the path of a real set does not shadow it: the oldest is fetched"
+real=$(rrestic prod prod-secret rs snapshots --json --path "/backup/db/$s7" | grep -o '"short_id":"[0-9a-f]*"' | cut -d'"' -f4)
+[ -n "$real" ] || fail "no snapshot of db/$s7 in the copy"
+# Another valid set (with a marker row) planted under the name of $s7, as a broken-into server can.
+sql "INSERT INTO items VALUES (8000, 'planted')" >/dev/null
+expect_ok bk backup
+sp=$(newest)
+sql "DELETE FROM items WHERE id = 8000" >/dev/null
+expect_ok docker run --rm --network bktest_default -e RESTIC_PASSWORD=copy-secret -e RESTIC_CACHE_DIR=/tmp/c \
+  -e RESTIC_REST_USERNAME=prod -e RESTIC_REST_PASSWORD=prod-secret -v "$tmp/sets/db/$sp:/backup/db/$s7:ro" "$restic_img" \
+  -r rest:http://rs:8000/prod/ backup --host bktest-backup --tag db "/backup/db/$s7"
+expect_ok dc exec -T -e CONFIRM=yes backup backup restore --from copy --set "$s7" --no-safety
+same "$(sql 'SELECT count(*) FROM items WHERE id = 8000')" 0 "the planted row after a restore of db/$s7 from the copy"
+has "WARNING: the copy holds 2 snapshots of db/$s7 ($real "
+has "the oldest, $real, is fetched"
+has "copy: fetched db/$s7 from rest:http://rs:8000/prod/ (snapshot $real)"
+has "restore: db OK: equal to the manifest of $s7"
 
 step "j. health: the newest set or copy too old, the grace before the first set, the scheduler"
 old=$(( $(date +%s) - 30 * 3600 ))

@@ -24,15 +24,17 @@
 # role, a server .env other users can read, the Dockerfile check of make lint, and the status
 # service of stage (deployed with the rest, GET /status with and without the token, a DOCKER_GID
 # that is not the socket's group refused by make stage and make restart before anything changes
-# and by no backup command, make restore or make images, DOCKER_GID written by make bootstrap) (standard ENV-02 to ENV-05, ENV-09, QLT-01, QLT-02, OPS-01, OPS-02, OPS-04). It prints how long the builds, a
+# and by no backup command, make restore or make images, DOCKER_GID written by make bootstrap),
+# and a project with a database and a server whose owner declined backups (no docker/backup/: make
+# stage deploys and migrates without a backup set, the backup targets refuse) (standard ENV-02 to ENV-05, ENV-09, QLT-01, QLT-02, OPS-01, OPS-02, OPS-04). It prints how long the builds, a
 # re-deploy and a rollback took. STDTEST_TRIVY=1 adds trivy to the sample's dev image, so make
 # image-scan scans for real (it downloads trivy's vulnerability database, about 130 MiB).
 # Everything it creates in Docker is named stdtest-dev*, stdtest-stage*, stdtest-prod*,
-# stdtest-ports, stdtest-proxy*, stdtest-app*, stdtest-backup* or stdtest-status*; it removes all of it on exit, and
+# stdtest-ports, stdtest-proxy*, stdtest-app*, stdtest-backup*, stdtest-status* or stdtest-nobk*; it removes all of it on exit, and
 # nothing else, so other tests' stdtest* objects survive a parallel run.
 set -eu
 root=$(cd "$(dirname "$0")/../.." && pwd)
-ours='^stdtest-(dev|stage|prod|ports|proxy)'
+ours='^stdtest-(dev|stage|prod|ports|proxy|nobk)'
 
 # git records the mode of the hook; a hook without the executable bit is ignored by git.
 mode=$(git -C "$root" ls-files -s templates/project/.githooks/pre-push 2>/dev/null | cut -c1-6) || mode=
@@ -49,7 +51,7 @@ cleanup() {
   for c in $(docker ps -a --format '{{.Names}}' | grep -E "$ours"); do docker rm -f "$c" >/dev/null; done
   for v in $(docker volume ls -q | grep -E "$ours"); do docker volume rm "$v" >/dev/null; done
   for n in $(docker network ls --format '{{.Name}}' | grep -E "$ours"); do docker network rm "$n" >/dev/null; done
-  for i in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^stdtest-(app|backup|dev|status)'); do
+  for i in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^stdtest-(app|backup|dev|status|nobk-)'); do
     docker rmi "$i" >/dev/null
   done
   # The backup sets belong to the backup container's postgres user, so a root container removes them.
@@ -98,8 +100,8 @@ took() { # took <what>: the seconds since clock, and the build times in the outp
   printf 'project:   %s: %s s\n' "$1" "$(( $(date +%s) - t0 ))"
   sed -n 's/^build: \(.* built in .*\)/project:     \1/p' "$out"
 }
-server_clone() { # server_clone <folder> <env> <port> <status port>: a clone with .env from .env.example
-  git clone -q "$tmp/remote.git" "$1"
+server_clone() { # server_clone <folder> <env> <port> <status port> [<remote>]: a clone with .env from .env.example
+  git clone -q "${5:-$tmp/remote.git}" "$1"
   cp "$1/.env.example" "$1/.env"
   # The daily backup an hour ago: the first one is tomorrow, so none starts during the test.
   sed -i -e "s|^PROJECT_ENV=.*|PROJECT_ENV=$2|" -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$2-secret|" \
@@ -183,15 +185,18 @@ pinned() {
     || fail "$1 has the image $2, not pinned as <name>:<tag>@sha256:<digest>"
 }
 
-# Host ports Docker reports free, for the dev, the stage and the prod clone.
+# Host ports Docker reports free, for the dev, the stage and the prod clone, and the stage clone of
+# the project without backups.
 docker run -d --name stdtest-ports -p 127.0.0.1::1 -p 127.0.0.1::2 -p 127.0.0.1::3 -p 127.0.0.1::4 \
-  -p 127.0.0.1::5 busybox:latest \
+  -p 127.0.0.1::5 -p 127.0.0.1::6 -p 127.0.0.1::7 busybox:latest \
   sleep 60 >/dev/null
 dev_port=$(docker port stdtest-ports 1 | sed -n '1s/.*://p')
 stage_port=$(docker port stdtest-ports 2 | sed -n '1s/.*://p')
 prod_port=$(docker port stdtest-ports 3 | sed -n '1s/.*://p')
 stage_status_port=$(docker port stdtest-ports 4 | sed -n '1s/.*://p')
 prod_status_port=$(docker port stdtest-ports 5 | sed -n '1s/.*://p')
+nobk_port=$(docker port stdtest-ports 6 | sed -n '1s/.*://p')
+nobk_status_port=$(docker port stdtest-ports 7 | sed -n '1s/.*://p')
 docker rm -f stdtest-ports >/dev/null
 
 step "the sample project from the templates"
@@ -1950,5 +1955,99 @@ expect_ok in_dir "$dev" make down
 git clone -q "$tmp/remote.git" "$tmp/dev4"
 expect_ok in_dir "$tmp/dev4" make bootstrap
 has "WARNING: the volumes of stdtest-dev exist, but no container of it: this clone's dev stack uses their data"
+
+step "m. a project with a database and a server whose owner declined backups: make stage deploys and migrates without a backup set, make infra runs no backup-test, the backup targets refuse"
+# The sample as the test first committed it, without what templates/README.md lists for a project
+# without a backup service: docker/backup/ and docs/how-to/backups.md; in the compose files the
+# backup service, its volumes, its x-check-compose-allow entries and the /disk/backup mount of
+# status; the BACKUP_* lines of .env.example; the backup line of scripts/tuning-check.sh; backup in
+# IMAGES. Its repository is stdtest-nobk, so its containers, volumes and images are its own.
+nb=$tmp/nobk nbs=$tmp/nobk-stage
+mkdir "$nb"
+git -C "$dev" archive "$c1" | tar -x -C "$nb"
+rm -r "$nb/docker/backup" "$nb/docs/how-to/backups.md"
+for f in docker-compose.dev.yml docker-compose.stage.yml docker-compose.prod.yml; do
+  # A block "  backup:" (the service, an x-check-compose-allow entry) ends at the next line
+  # indented by two spaces or less.
+  awk '$0 == "  backup:" { skip = 1; next } skip && /^(  )?[^ ]/ { skip = 0 } !skip' "$nb/$f" > "$tmp/nobk.yml"
+  sed -e '/^  backup-data: {}$/d' -e '/^  backup-drill: {}$/d' -e '\|:/disk/backup:ro"\]$|d' \
+    -e 's/^name: stdtest-/name: stdtest-nobk-/' -e 's/^\(    image: \)stdtest-/\1stdtest-nobk-/' \
+    "$tmp/nobk.yml" > "$nb/$f"
+  ! grep -nE '^ *[^ #].*backup' "$nb/$f" || fail "$f of the project without backups still has the backup lines above"
+done
+rm "$tmp/nobk.yml"
+sed -i '/^BACKUP_[A-Z_]*=/d' "$nb/.env.example"
+sed -i '/^limits backup /d' "$nb/scripts/tuning-check.sh"
+sed -i 's/^IMAGES = app backup status$/IMAGES = app status/' "$nb/Makefile"
+grep -qx 'IMAGES = app status' "$nb/Makefile" || fail "the Makefile has no 'IMAGES = app backup status' to take backup out of"
+! grep -n -e '^BACKUP_' -e '^limits backup ' "$nb/.env.example" "$nb/scripts/tuning-check.sh" \
+  || fail "the project without backups still has the backup lines above"
+git init -q -b main "$nb"
+git -C "$nb" add -A
+git -C "$nb" commit -q -m "the sample project without backups"
+n1=$(git -C "$nb" rev-parse HEAD)
+git init -q --bare -b main "$tmp/nobk.git"
+git -C "$nb" remote add origin "$tmp/nobk.git"
+git -C "$nb" push -q -u origin main
+# On the host: the Dockerfile check of the own images (IMAGES) and make infra, which checks the
+# compose rules and parity and runs no backup-test.
+expect_ok in_dir "$nb" make lint LINT=off
+has "dockerfile-check: docker/app/Dockerfile"
+has "dockerfile-check: OK"
+! grep -q 'docker/backup' "$out" || { cat "$out"; fail "make lint of the project without backups checked docker/backup"; }
+expect_ok in_dir "$nb" make infra
+has "docker-compose.stage.yml: OK"
+has "docker-compose.prod.yml: OK"
+has "parity: OK"
+! grep -q -e '^drill: ' -e 'backup-test' "$out" || { cat "$out"; fail "make infra of the project without backups ran backup-test"; }
+# The first deploy of the server clone: the database comes up, the migration runs, and no line of
+# the output speaks of a backup (deploy_migrate looks for a backup service in the compose file).
+server_clone "$nbs" stage "$nobk_port" "$nobk_status_port" "$tmp/nobk.git"
+no_backup_line() { ! grep -q '^backup' "$out" || { cat "$out"; fail "$1 of the project without backups printed a backup line"; }; }
+clock
+expect_ok in_dir "$nbs" timeout 600 make stage
+took "make stage of the project without backups, which builds its own images (app, status)"
+has "migrate: schema 1"
+no_backup_line "the first make stage"
+has "build: stdtest-nobk-app:$(git -C "$nb" rev-parse "$n1^{tree}") from commit $n1"
+has "build: stdtest-nobk-status:$(git -C "$nb" rev-parse "$n1^{tree}") from commit $n1"
+! grep -q 'stdtest-nobk-backup' "$out" || { cat "$out"; fail "make stage of the project without backups built a backup image"; }
+has "OK: stage runs $n1"
+has "tuning-check: ok"
+[ -s "$nbs/.deploy/history" ] || fail "make stage of the project without backups did not record the deploy"
+same "$(docker ps --filter label=com.docker.compose.project=stdtest-nobk-stage --format '{{.Label "com.docker.compose.service"}}' | sort | tr '\n' ' ')" \
+  "app db status status-proxy " "the running services of the project without backups"
+same "$(app_role stdtest-nobk-stage-db-1 stageapp)" f "the application's role of the project without backups is a superuser"
+# GET /status: pass, the services healthy, and nothing of a backup.
+i=0
+until run status_get stdtest-nobk-stage-status-1 stage-status-token-0123456789 && grep -q '"status": "pass"}$' "$out"; do
+  i=$((i + 1)); [ "$i" -lt 60 ] || { cat "$out"; fail "GET /status of the project without backups never answered pass"; }
+  sleep 1
+done
+has '{"project": "stdtest-nobk-stage", "ok": true, '
+for svc in app db status status-proxy; do has "\"$svc\": {\"status\": \"healthy\", "; done
+! grep -q '"backup"' "$out" || { cat "$out"; fail "GET /status of the project without backups reports a backup"; }
+# A deploy after a deploy, where a project with backups makes a set before the migration: here the
+# migration runs at once.
+sed -i 's/^VERSION = 1$/VERSION = 2/' "$nb/app.py"
+git -C "$nb" commit -q -am "version 2 of the project without backups"
+n2=$(git -C "$nb" rev-parse HEAD)
+git -C "$nb" push -q
+expect_ok in_dir "$nbs" make stage
+has "migrate: schema 2"
+no_backup_line "the second make stage"
+has "OK: stage runs $n2"
+same "$(serves stdtest-nobk-stage-app-1)" "version 2" "the app of the project without backups"
+same "$(docker exec stdtest-nobk-stage-app-1 tail -n 1 /data/migrations.log)" "2 version 1" "the migration log of the project without backups"
+# Every backup target and make restore refuse, and nothing changes.
+app_id=$(cid stdtest-nobk-stage-app-1)
+for t in backup backup-list backup-drill restore-drill backup-status backup-copy-check backup-test; do
+  expect_fail in_dir "$nbs" make "$t"
+  has "ERROR: this project has no backup service (docker/backup/, standard OPS-01)"
+done
+expect_fail in_dir "$nbs" no_tty make restore CONFIRM=yes
+has "ERROR: this project has no backup service (docker/backup/, standard OPS-01)"
+same "$(cid stdtest-nobk-stage-app-1)" "$app_id" "the app container of the project without backups after the refused backup targets"
+running stdtest-nobk-stage-app-1
 
 echo "project tests: OK"

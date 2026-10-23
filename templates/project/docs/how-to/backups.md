@@ -127,12 +127,12 @@ runs only for a command.
 ## Commands
 
 `S=<service>` takes one store (for example `S=db`) where the table says so; without it, every
-store of `BACKUP_STORES`. `S=`, `SET=`, `FROM=`, `NO_SAFETY=` and `CONFIRM=` count only on make's
-command line, never from a variable of the environment: a `CONFIRM=yes` exported in a shell
-confirms nothing. GNU make also reads such values from an exported `MAKEFLAGS` or `GNUMAKEFLAGS`,
-or from a make that runs this one; `S=`, `SET=`, `FROM=` and `NO_SAFETY=` are taken from there
-too, but `CONFIRM=yes` is taken only when it is on the command line of the `make restore` itself
-(read with `ps`).
+store of `BACKUP_STORES`. `S=`, `SET=`, `FROM=`, `NO_SAFETY=`, `CONFIRM=` and `RISK=` count only
+on make's command line, never from a variable of the environment: a `CONFIRM=yes` exported in a
+shell confirms nothing. GNU make also reads such values from an exported `MAKEFLAGS` or
+`GNUMAKEFLAGS`, or from a make that runs this one; `S=`, `SET=`, `FROM=` and `NO_SAFETY=` are taken
+from there too, but `CONFIRM=yes` and `RISK=yes` are taken only when they are on the command line
+of that `make` itself (read with `ps`).
 
 | Command | Where | What it does |
 |---|---|---|
@@ -295,7 +295,12 @@ except in the safety set.
    `SET=before-restore` is the safety set of the last restore. `FROM=copy` takes the set from the
    off-server copy (on a server only; `make backup-list FROM=copy` names those); a restore only
    opens the repository at `BACKUP_COPY_TO` and never creates one. `S=<service>` restores one
-   store.
+   store. After a break-in into the server, take a set from before the break-in from the copy,
+   by its name from `make backup-list FROM=copy`, never `latest`: whoever was on the server could
+   change the local sets and add sets to the copy. A set the copy holds more than once is fetched
+   from its oldest snapshot, with a warning that lists them all; a snapshot added with an earlier
+   date still wins, so after a break-in compare the ids and times of that warning with the storage
+   side.
 2. `make restore` with the same `SET=`, `FROM=` and `S=` first checks, and changes nothing until
    the check passes: it finds the set of every store, checks the checksums of the local sets and
    the free space, then shows what it would replace, for each store:
@@ -341,11 +346,21 @@ keeping.
 
 Set the new server up as [the server runbook](operations.md) describes up to the first start, with
 the same `BACKUP_COPY_TO`, `BACKUP_COPY_PASSWORD`, `BACKUP_COPY_LOGIN`,
-`BACKUP_COPY_LOGIN_PASSWORD` and `PROJECT_ENV` as the old one (the copy lists its sets under the
-host name `<repo>-backup-<env>`), an empty or missing `BACKUP_DIR`, and the certificate file if the
-storage side uses its own. Then `make restore FROM=copy SET=latest NO_SAFETY=1` before the
-application starts (a new database holds nothing to keep); it builds the images of the
-checked-out commit first.
+`BACKUP_COPY_LOGIN_PASSWORD` and `PROJECT_ENV` as the old one (the copy lists the sets of both
+under the one host name `<repo>-backup-<env>`), an empty or missing `BACKUP_DIR`, and the
+certificate file if the storage side uses its own. Then:
+
+1. On the old server, while it still runs, stop what writes to the stores
+   (`docker compose -f docker-compose.<env>.yml stop app`, and any other such service), then
+   `make backup`. After a break-in skip this step.
+2. On the new server, `make backup-list FROM=copy` names the sets of the copy: take that last set
+   (after a break-in, one from before it).
+3. `make restore FROM=copy SET=<its name> NO_SAFETY=1` before the application starts (a new
+   database holds nothing to keep); it builds the images of the checked-out commit first. Name the
+   set: `latest` may be a later set under the same host name.
+4. Stop the old server's `backup` service (`docker compose -f docker-compose.<env>.yml stop backup`
+   there), or its whole stack (`docker compose -f docker-compose.<env>.yml down`, never `-v`), so it
+   adds no more sets to the copy.
 
 ## Writing a module for another store
 

@@ -115,10 +115,22 @@ fetch_set() { # fetch_set <store> <name>: restore that set from the copy (copy_r
   rm -rf "$t" || die "cannot remove $t"
   mkdir -p "$t" || die "cannot create $t"
   at_exit "rm -rf '$t'"
-  out=$(restic_run restore latest --tag "$1" --host "$host" --path "$dir/$1/$2" --target "$t" 2>&1) \
+  # A set is copied once, but this server's login can add a snapshot with the same path, which
+  # the latest would take: the oldest is fetched (restic lists them oldest first), by its id.
+  out=$(restic_run snapshots --json --tag "$1" --host "$host" --path "$dir/$1/$2" 2>&1) \
+    || die "cannot fetch the set $1/$2 from $copy_to: $(copy_why "$out")"
+  snaps=$(printf '%s\n' "$out" | sed 's/},{"time":/}\n{"time":/g' \
+    | sed -n 's/^\[\{0,1\}{"time":"\([^"]*\)".*"id":"\([0-9a-f]\{64\}\)".*/\2 \1/p')
+  [ -n "$snaps" ] || die "the copy at $copy_to has no set $1/$2 of host $host"
+  snap_id=$(printf '%s\n' "$snaps" | sed -n '1s/ .*//p')
+  snap_short=$(printf '%.8s' "$snap_id")
+  snap_n=$(printf '%s\n' "$snaps" | wc -l)
+  [ "$snap_n" -eq 1 ] || say "WARNING: the copy holds $snap_n snapshots of $1/$2 ($(printf '%s\n' "$snaps" \
+    | sed 's/^\([0-9a-f]\{8\}\)[0-9a-f]* /\1 of /' | tr '\n' ',' | sed 's/,$//; s/,/, /g')): the oldest, $snap_short, is fetched; a set is copied once, so the others were added with this server's login (or copied again after $state was lost)"
+  out=$(restic_run restore "$snap_id" --target "$t" 2>&1) \
     || die "cannot fetch the set $1/$2 from $copy_to: $(copy_why "$out")"
   [ -d "$(copy_fetched_dir "$1" "$2")" ] || die "the copy at $copy_to has no set $1/$2 of host $host"
-  say "copy: fetched $1/$2 from $copy_to"
+  say "copy: fetched $1/$2 from $copy_to (snapshot $snap_short)"
 }
 
 # ---- checks of the copy ----------------------------------------------------

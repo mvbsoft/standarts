@@ -26,8 +26,8 @@ depends on them is tuned to them. This page explains each such setting once; its
 - **No swap.** Every service with a memory limit has `memswap_limit` equal to it.
 - **To change a limit**, derive the numbers of its rows again, write both in `.env`, then
   `make restart`.
-- **To check**, `make tuning-check` (also the last step of `make stage`, `make prod` and
-  `make restart`) compares what each running service reports with `.env`:
+- **To check**, `make tuning-check` (also the last step of `make stage`, `make prod`,
+  `make rollback` and `make restart`) compares what each running service reports with `.env`:
   `tuning-check: ok <parameter>` or `tuning-check: FAIL <parameter>: <actual>, expected <expected>`.
   A FAIL fails the deploy after it is recorded, so `.deploy/history` names the commit that runs:
   set the value in `.env`, then `make restart`.

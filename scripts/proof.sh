@@ -386,12 +386,18 @@ main() {
   case "$cmd" in create|stage|prod|clean|path) ;; *) die "usage: sh proof.sh create | stage | prod | clean | path" ;; esac
 
   # The project folder and $t. A folder of the copy finds $t by the file .proof in it, which holds
-  # <repo> and the project folder.
+  # <repo> and the project folder. A .proof elsewhere (copied, or left in an ordinary folder) must
+  # not make that folder $t, which clean removes: $t has the name create gives the copy of that
+  # project folder, and its remote.git. Its name only, since its parent is the TMPDIR of create.
   here=$(pwd -P)
   in_copy=''
   if [ -f "$here/../.proof" ]; then
     t=$(cd "$here/.." && pwd -P) in_copy=1
     repo=$(sed -n 1p "$t/.proof") src=$(sed -n 2p "$t/.proof")
+    want=$repo-proof-$(printf '%s' "$src" | git hash-object --stdin | cut -c1-6)
+    [ "${t##*/}" = "$want" ] && [ -d "$t/remote.git" ] \
+      || die "$t has a file .proof, but is not the proof copy it names ($want of $src, with remote.git):" \
+        "nothing was changed; run proof.sh in the project folder or in a folder of its proof copy"
   else
     src=$here
     if [ -e .git ]; then

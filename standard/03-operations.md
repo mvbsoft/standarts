@@ -89,15 +89,16 @@ its commands run as, its mounts and capabilities), lives in the compose files an
   `make backup-drill`, the service restores the newest set (or the one named with `SET=`) into a
   temporary server of each store's type and version inside itself, compares it with the manifest
   and deletes it. A drill never touches the working databases.
-- **Off-server copy: the server may only add.** Prod has one: an empty `BACKUP_COPY_TO` in prod is
-  an audit finding, because a copy on the same disk does not survive that disk. Every checked set is
+- **Off-server copy: the server may only add.** Prod has one, because a copy on the same disk does not survive that
+  disk; an empty `BACKUP_COPY_TO` in prod is an audit finding unless registry section 0 records the
+  owner's no ([TYP-01](07-project-types.md#the-choices), S-08). Every checked set is
   also copied to a store outside the server, as a restic repository that restic encrypts with
   `BACKUP_COPY_PASSWORD`; that password is also kept in a safe place off the server, because
   without it the copy cannot be read. The server's credentials for the copy can add and read sets
   and can neither delete nor change one, so someone who breaks into prod cannot delete or change the
   sets already in the copy; the template's test proves that the server's login cannot `forget`
   them, and the rest is a one-off measurement ([D-0010](../decisions/0010-backups.md)). A copy into a local folder or over
-  `rest:http://` is an audit finding in prod too, like an empty `BACKUP_COPY_TO`; the template accepts them for
+  `rest:http://` is an audit finding in prod too; the template accepts them for
   tests only. The copy is rotated by the storage side with credentials
   of its own, and its rotation keeps every set of a recent window (`--keep-within`), because
   someone with the server's credentials can add empty sets with any date, and a rotation that counts
@@ -144,9 +145,11 @@ its commands run as, its mounts and capabilities), lives in the compose files an
   restore then stops the application side, so nothing writes during it, and compares the result with
   the manifest; `backup`, the status service and its socket proxy keep running (they write nothing
   of the application's, and the status service reports the stopped application as down); the
-  application stays stopped until `make restart`. A new server gets its data with
-  `make restore FROM=copy SET=latest NO_SAFETY=1` before its first `make stage` / `make prod` (a new
-  database holds nothing to keep); on a server, `make restore` first builds the images of the
+  application stays stopped until `make restart`. After a break-in a restore names a set from
+  before it, found with `make backup-list FROM=copy`, never `latest`: a broken-into server can add
+  sets to the copy. A new server gets its data with
+  `make restore FROM=copy SET=<set> NO_SAFETY=1`, the set named from that list, before its first
+  `make stage` / `make prod` (a new database holds nothing to keep); on a server, `make restore` first builds the images of the
   checked-out commit that the server lacks.
 - **Non-root.** The service starts as root only to give its backup folder and `/drill` to the
   database user, then drops to it; every command runs as that user without capabilities. For that
@@ -199,8 +202,8 @@ is recorded in the registry.
    `scripts/tuning-check.sh`, which asks the running services of this clone's environment
    (`PROJECT_ENV`) for their actual values, compares each with its value in `.env`, prints one line
    per parameter of `docs/how-to/tuning.md` and exits non-zero on any parameter that differs or a
-   service that does not answer. It runs at the end of `make stage`, `make prod` and
-   `make restart`, after the deploy is recorded: when it fails, the new containers already run, the
+   service that does not answer. It runs at the end of `make stage`, `make prod`, `make rollback`
+   and `make restart`, after the deploy is recorded: when it fails, the new containers already run, the
    history says so, and the command fails. Fix the value in `.env` and run `make restart`.
 6. **Explained once.** Every parameter is explained in `docs/how-to/tuning.md`: what it is, why,
    how it is derived, how to change it, how to check it, the source. Its variable in
@@ -292,7 +295,7 @@ setting the standard up asks the owner whether they want health monitoring
   it, see it clear.
 - **Disk.** `status` reports the free space of the disk of Docker's data and of the backup folder; a
   disk below `DISK_WARN` (a percentage or a size, never less than `DISK_RESERVE`) is `fail`, so the
-  alarm comes before a deploy or a backup refuses for lack of space
+  alarm comes before a deploy warns, or a scheduled backup refuses, for lack of space
   ([OPS-01](#ops-01-backups-m-if-the-project-has-data-worth-keeping)). A deploy needs twice the
   own images plus `DISK_RESERVE`, so `DISK_WARN` is set above that sum to be warned first; `status`
   does not compute it. On Docker Desktop the reading is indicative only (one-off measurement,

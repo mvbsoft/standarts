@@ -18,14 +18,14 @@ comments).
 | `scripts/project.sh` from [project/scripts/](project/scripts/project.sh) | verbatim | ENV-04, ENV-05, ENV-09 | always |
 | `.githooks/pre-push` from [project/.githooks/](project/.githooks/pre-push) | verbatim | QLT-02 | always |
 | `scripts/check-compose.sh`, `scripts/check-compose.py` from [check-compose/](check-compose/scripts/) | verbatim; 4.0.0 also checks the digests in `FROM`, `COPY --from`, `RUN --mount from=` and `# syntax=` of `docker/<name>/Dockerfile`, and refuses the tag `latest` | [ENV-03](../standard/02-environments.md#env-03-compose-rule-check-m-if-there-is-stage-or-prod) | there is stage or prod |
-| `.claude/plugins/` and the `settings.fragment.json` merge from [docker-lsp/](docker-lsp/) | verbatim except `<repo>`, `<owner>` and the language list | AI-07 | there is a `dev` service |
-| `.claude/hooks/check-file.sh`, `check-command.sh` (the checks, for any agent), `post-edit.sh`, `pre-bash.sh` (the Claude Code adapters that call them), `json-get.awk` and the `settings.fragment.json` merge from [agent-hooks/](agent-hooks/); a project copies the whole `.claude/hooks/` | verbatim | AI-05, AI-06 | there is a `dev` service |
-| `.claude/hooks/checks.conf` from [agent-hooks/](agent-hooks/.claude/hooks/checks.conf) | starting point: a `check` line for the formatter check, the linter and, where it checks one file with the project's settings, the type checker of each language the project has, the same tools as `LINT`; `allow` lines only for the host exceptions of registry section E | AI-05, AI-06, QLT-01 | there is a `dev` service |
-| `docker/backup/backup.sh`, `copy.sh` from [project/docker/backup/](project/docker/backup/backup.sh) | verbatim | OPS-01 | the project has data worth keeping |
+| `.claude/plugins/` and the `settings.fragment.json` merge from [docker-lsp/](docker-lsp/) | verbatim except `<repo>`, `<owner>` and the language list | AI-07 | the owner wants language servers (S-21) |
+| `.claude/hooks/check-file.sh`, `check-command.sh` (the checks, for any agent), `post-edit.sh`, `pre-bash.sh` (the Claude Code adapters that call them), `json-get.awk` and the `settings.fragment.json` merge from [agent-hooks/](agent-hooks/); a project copies the whole `.claude/hooks/` | verbatim | AI-05, AI-06 | the owner wants the agent's hooks (S-20) |
+| `.claude/hooks/checks.conf` from [agent-hooks/](agent-hooks/.claude/hooks/checks.conf) | starting point: a `check` line for the formatter check, the linter and, where it checks one file with the project's settings, the type checker of each language the project has, the same tools as `LINT`; `allow` lines only for the host exceptions of registry section E | AI-05, AI-06, QLT-01 | the owner wants the agent's hooks (S-20) |
+| `docker/backup/backup.sh`, `copy.sh` from [project/docker/backup/](project/docker/backup/backup.sh) | verbatim | OPS-01 | the project has backups (S-06) |
 | `docker/backup/postgres.sh` from [project/docker/backup/](project/docker/backup/postgres.sh) | verbatim: the module of a Postgres store and the reference for the module of any other store, which the project writes next to it | OPS-01 | a Postgres store |
 | `docker/status/Dockerfile`, `status.py` from [project/docker/status/](project/docker/status/status.py) | verbatim: the monitoring service (the compose files' `status` service runs it; `status-proxy` is a pinned image of wollomatic/socket-proxy) | OPS-04, ENV-08 | there is stage or prod, and the owner wants health monitoring |
-| `docker/backup/Dockerfile` from [project/docker/backup/](project/docker/backup/Dockerfile) | starting point: the `FROM` names the project's database image; another store adds its client and server, and `BACKUP_USER` names the base image's database user; another kind of off-server copy needs its own client and its own proof that the server cannot delete from it; its header lists what `backup.sh` needs from the base image | OPS-01, ENV-08 | the project has data worth keeping |
-| `docs/how-to/backups.md` from [project/docs/how-to/](project/docs/how-to/backups.md) | starting point | DOC-01, OPS-01 | the project has data worth keeping |
+| `docker/backup/Dockerfile` from [project/docker/backup/](project/docker/backup/Dockerfile) | starting point: the `FROM` names the project's database image; another store adds its client and server, and `BACKUP_USER` names the base image's database user; another kind of off-server copy needs its own client and its own proof that the server cannot delete from it; its header lists what `backup.sh` needs from the base image | OPS-01, ENV-08 | the project has backups (S-06) |
+| `docs/how-to/backups.md` from [project/docs/how-to/](project/docs/how-to/backups.md) | starting point | DOC-01, OPS-01 | the project has backups (S-06) |
 | `README.md` from [project/README.md](project/README.md) | starting point: the section "Working with this project" keeps the rows of every scenario that applies, with the commands unchanged | DOC-04 | always |
 | `docs/how-to/operations.md` from [project/docs/how-to/](project/docs/how-to/operations.md) | starting point; its section "Monitoring" goes with the `status` service | DOC-01, DOC-04, OPS-04 | there is stage or prod |
 | `docs/how-to/tuning.md` from [project/docs/how-to/](project/docs/how-to/tuning.md) | starting point: the method stays; one row per parameter the project tunes (the template's rows fit its limits and a PostgreSQL database) | DOC-01, OPS-02 | there is stage or prod |
@@ -65,16 +65,20 @@ The compose files' `backup` service starts as root only to give its folders to t
 rule comes with the template too; it runs as `nobody`, and the standard's `tests/status` prove that
 it forwards only the container list and this project's containers by name. These exceptions are
 the standard's own and need no row in registry section E; any other exception does.
-A project without data worth keeping has no `backup` service: it leaves out `docker/backup/`,
+A project without data worth keeping, or whose owner declined backups (S-06), has no `backup`
+service: it leaves out `docker/backup/`,
 `docs/how-to/backups.md`, the `backup` service, the `backup-data` and `backup-drill` volumes and
-those exceptions in the compose files, the `BACKUP_*` lines of `.env.example`, the `backup`
-line of `scripts/tuning-check.sh`, `backup` in `IMAGES`, the `/disk/backup` mount of the `status` service (its `disk.backup` would
+those exceptions in the compose files, the `BACKUP_*` lines of `.env.example`, `BACKUP_CPUS` and
+`BACKUP_MEM` in the first row of `docs/how-to/tuning.md`, the `backup` line of
+`scripts/tuning-check.sh`, `docker/backup/data/` in `.gitignore` and `.dockerignore` and the
+backup folder in `.gitleaks.toml`, `backup` in `IMAGES`, the `/disk/backup` mount of the `status` service (its `disk.backup` would
 report a folder that does not exist), the backup rows and link of the README and the backup parts of
 `docs/how-to/operations.md`; its backup targets refuse with `this project has no backup service`.
 A project that does not want health monitoring leaves out `docker/status/`, the `status` and
 `status-proxy` services and the `status-proxy` network in the stage and prod files (with the
 `docker-sock` entry of `x-check-compose-allow`), the `STATUS_*`, `DISK_WARN` and `DOCKER_GID` lines
-of `.env.example`, the `status` lines of `scripts/tuning-check.sh`, `status` in `IMAGES`, the
+of `.env.example`, the `STATUS_*` limits in the first row of `docs/how-to/tuning.md`, the `status`
+lines of `scripts/tuning-check.sh`, `status` in `IMAGES`, the
 monitoring rows of the README and the section "Monitoring" of `docs/how-to/operations.md`.
 
 [report-site/](report-site/README.md) is not copied into a project: it is the page on which the

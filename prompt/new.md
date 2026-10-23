@@ -6,47 +6,13 @@ Stop after every step and wait for the owner, as [`start.md`](start.md) section 
 
 ## 1. Ask
 
-In one message, ask what only the owner knows, with your recommendation for each. Every answer
-goes into section 0 of the registry ([DOC-03](../standard/06-docs.md)) with its reason, so that
-[`update.md`](update.md) never asks it again:
-- what the project does, in a sentence or two, and its name (the repository name, lowercase with
-  dashes);
-- its type and languages ([TYP-01](../standard/07-project-types.md)); a repository may have several;
-- which environments it has (propose them from TYP-01) and, if it has stage or prod, the branches
-  they follow (default `main` and `prod`); the servers build the images themselves, so a private
-  dependency needs read credentials on each server: ask whether there is one;
-- with stage or prod, the size of each server (CPUs and memory), or "not known yet": the
-  container limits and the numbers derived from them come from it
-  ([OPS-02](../standard/03-operations.md)); not known means the template's limits, and a row in
-  registry section E whose trigger is "the server exists";
-- which data stores it needs (for example Postgres, Redis), if any; with a data store on stage or
-  prod: the folder of the backup sets on each server (`BACKUP_DIR`,
-  [OPS-01](../standard/03-operations.md)): (a) the template's `./docker/backup/data` in the clone,
-  (b) your advice with its reason (another disk, for example), or (c) a path of the owner's; the
-  storage the off-server backup copy will go to once a server exists (the template's example is a
-  rest-server that the server can only write to,
-  [`backups.md`](../templates/project/docs/how-to/backups.md)); and, with prod, the monitor on
-  another machine that receives the backup heartbeat (`BACKUP_HEARTBEAT_URL`; recommended for
-  prod);
-- with stage or prod: whether it wants health monitoring ([OPS-04](../standard/03-operations.md)):
-  the `status` service reports the health of every service and the free disk space to a monitor on
-  another machine, which alerts when something fails or the reports stop (example: the cache
-  dies at night, and the alert comes in a minute instead of the next morning from a user); if yes,
-  which monitor (it is set up once a server exists); and the folder for the logs of replaced
-  containers (`LOG_ARCHIVE_DIR`, [OPS-03](../standard/03-operations.md)): the template's
-  `.deploy/logs` in the clone, your advice with its reason, a path of the owner's, or none (empty:
-  the logs of a container go with it);
-- for each mandatory check of [QLT-01](../standard/04-quality.md) (`LINT`, `TEST`, `SECRETS` in
-  the `Makefile` settings): the command you propose, or `off` (the owner does not want that check;
-  the summary of `make gates` then shows `off`);
-- whether it wants mutation testing ([QLT-01](../standard/04-quality.md)): it changes the code on
-  purpose and checks that a test fails, so it finds tests that pass whatever the code does; it is
-  run by hand and is slow. If yes, the limits of its container (`MUTATION_CPUS`, `MUTATION_MEM`)
-  and the base of `make mutation-diff`; if no, nothing of it goes into the project;
-- with a UI: whether the agent gets a browser ([AI-08](../standard/05-agents.md));
-- where the backlog lives ([DOC-02](../standard/06-docs.md)): a file in the repository, or which
-  issue tracker;
-- the documentation language.
+Ask what only the owner knows, one question at a time as [`start.md`](start.md) section 3 says.
+First what the project does, in a sentence or two, its name (the repository name, lowercase with
+dashes) and which data stores it needs (for example Postgres, Redis), if any; then the questions of
+[`questions.md`](questions.md), S-01 to S-24, with your recommendation for each. Every answer
+goes into section 0 of the registry ([DOC-03](../standard/06-docs.md)) with its reason, under its
+`S-nn` or, for the first three, a short name (`name`, `description`, `data stores`);
+[`update.md`](update.md) does not ask them again unless the owner revisits one.
 
 ## 2. Plan the skeleton
 
@@ -83,8 +49,9 @@ out. Show the list and wait.
 2. Write `docker/<service>/Dockerfile` for every own service with the stages of
    [ENV-08](../standard/02-environments.md): `base` (the pinned OS image, the language and the
    runtime libraries from the lock file), `runtime` (`base` + the code, a non-root user, the start
-   command) and `dev` (`base` + the pinned dev tools and language servers; it never copies the
-   code, which comes only from the dev mount, so a code change does not rebuild it). Then the
+   command) and `dev` (`base` + the pinned dev tools and the language servers of S-21; it never
+   copies the code, which comes only from the dev mount, so a code change does not rebuild it).
+   Then the
    compose files of the environments the project has ([ENV-01](../standard/02-environments.md)),
    `.env.example` with a comment on every variable (`BACKUP_DIR` and `LOG_ARCHIVE_DIR` as the
    owner chose; the limits from the server size, or the template's), the services for its data
@@ -94,7 +61,7 @@ out. Show the list and wait.
    `APP_DB_PASSWORD`; its `DB_PASSWORD` is the superuser's, so a framework with names of its own,
    such as Laravel's `DB_USERNAME` and `DB_PASSWORD`, gets them from those two in the
    application's `environment:`), for tests against a database the `db-test` service
-   on tmpfs that the dev file's comment shows, with a data store the `backup` service of
+   on tmpfs that the dev file's comment shows, with backups (S-06) the `backup` service of
    [OPS-01](../standard/03-operations.md) from the template (a module for every store; the
    template's `postgres` module is the pattern for others and needs PostgreSQL 15 or later),
    with health monitoring the `status` service of [OPS-04](../standard/03-operations.md) from the
@@ -104,15 +71,16 @@ out. Show the list and wait.
    and a check line for every tuned parameter ([OPS-02](../standard/03-operations.md));
    with prod, `trivy.yaml` from its starting point and a pinned trivy in the `dev` stage for
    `make image-scan` ([QLT-01](../standard/04-quality.md)).
-3. With a `dev` service, the agent hooks of [AI-05 and AI-06](../standard/05-agents.md) from
+3. With the agent's hooks (S-20), those of [AI-05 and AI-06](../standard/05-agents.md) from
    `$STANDARD/templates/agent-hooks/`: `.claude/hooks/post-edit.sh`, `pre-bash.sh`,
    `check-file.sh`, `check-command.sh` and `json-get.awk` verbatim (or the whole `.claude/hooks/`
    folder), `.claude/hooks/checks.conf` from its starting point with a `check` line
    for the formatter check, the linter and (where it checks one file) the type checker of each
    language, the same tools as `LINT`, and the hooks of its `settings.fragment.json` merged into
-   `.claude/settings.json`. The `docker-lsp` plugin of [AI-07](../standard/05-agents.md) from
-   `$STANDARD/templates/docker-lsp/`: its `.claude/plugins/` files with `<repo>`, `<owner>` and the
-   project's languages filled in, and its `settings.fragment.json` merged the same way. With a
+   `.claude/settings.json`. With language servers (S-21), the `docker-lsp` plugin of
+   [AI-07](../standard/05-agents.md) from `$STANDARD/templates/docker-lsp/`: its
+   `.claude/plugins/` files with `<repo>`, `<owner>` and the project's languages filled in, and its
+   `settings.fragment.json` merged the same way. With a
    browser for the agent, the `browser` profile and the `.mcp.json` entry of
    [AI-08](../standard/05-agents.md).
 4. Write the smallest working application: one test that runs in `make gates`, and, with a
@@ -121,7 +89,7 @@ out. Show the list and wait.
 5. Fill the README section ([DOC-04](../standard/06-docs.md)), `AGENTS.md`, the registry
    ([DOC-03](../standard/06-docs.md)) with every answer of step 1 in its section 0, and the docs
    pages the project needs ([DOC-01](../standard/06-docs.md)), with `tuning.md` as the table of
-   [`adopt.md`](adopt.md) phase 5.1 and, with a data store, `backups.md` from its starting point.
+   [`adopt.md`](adopt.md) phase 5.1 and, with backups, `backups.md` from its starting point.
    Every rule the project does not meet yet gets a row in registry section E with its reason and
    trigger.
 
@@ -140,7 +108,8 @@ output for the report:
 - `make gates` is green, takes under five minutes and ends with its summary, one line for each of
   `lint`, `test` and `secrets`: `ok`, or `off` for a check the owner turned off; a
   deliberately failing test, committed in `$t/p`, makes `git push origin HEAD:<STAGE_BRANCH>`
-  refuse after the gates' output and `make gates: FAIL (test)`; after one more commit in `$t/p` with a new file left uncommitted next to it,
+  refuse after the gates' output and `make gates: FAIL (test)`; after `git revert --no-edit HEAD`
+  and one more commit in `$t/p` with a new file left uncommitted next to it,
   `git push origin HEAD:<STAGE_BRANCH>` (the run has no terminal) prints
   `pre-push: WARNING: not committed in <top>, and the gates check them together with the commit:`
   with that file, runs the gates and pushes (then remove the file); with `FIX` set, a formatting
@@ -156,14 +125,16 @@ output for the report:
 - with mutation testing ([QLT-01](../standard/04-quality.md)): `make mutation-diff` run once, then
   again after a one-line change to one code file, mutates only that file the second time (its
   report names no mutant in another file), and `make mutation` runs over all the code;
-- the language servers ([AI-07](../standard/05-agents.md)), in `$t/p` with its dev stack running:
+- with language servers, the servers ([AI-07](../standard/05-agents.md)), in `$t/p` with its
+  dev stack running:
   `docker compose -f docker-compose.dev.yml exec -T dev sh -c 'command -v <server>'` finds each,
   and each answers over LSP, started as the plugin starts it, with a type error planted in a file
   of its language in its diagnostics: the session of the function `lsp` in
   `$STANDARD/tests/stacks/run.sh`, with its client `$STANDARD/tests/stacks/lsp-client.py` in the
   pinned Python image of `scripts/check-compose.sh` (`git checkout -- <file>` takes the error out
   again). That Claude Code loads the plugin is the owner's step of step 5;
-- the agent hooks, fed the JSON Claude Code sends, in `$t/p` with its dev stack running:
+- with the agent's hooks, the hooks, fed the JSON Claude Code sends, in `$t/p` with its dev
+  stack running:
   `printf '{"hook_event_name":"PostToolUse","tool_name":"Edit","tool_input":{"file_path":"%s"}}' "$PWD/<file>" | sh .claude/hooks/post-edit.sh; echo "exit $?"`
   prints only `exit 0` for a clean file of each language, and `exit 2` after `check failed: <file>`
   and the tool's message once a lint error is planted in that file (an unused import, for
@@ -206,7 +177,7 @@ output for the report:
   `docker compose -f <file> stop <a service>` the same command fails with
   `HTTP Error 503: Service Unavailable` until `docker compose -f <file> start <that service>`;
 - `make dev` in the worktree `$t/wt` starts its own stack next to the main one;
-- with a data store: `make backup-test` in `$t/p` prints `OK`. With stage or prod, in the stage
+- with backups: `make backup-test` in `$t/p` prints `OK`. With stage or prod, in the stage
   clone (`<file>` is its compose file), whose `.env` the script gave
   `BACKUP_COPY_TO=/backup/.copy` (a local-path repository inside `BACKUP_DIR`, for this proof
   only). The steps name the store `db`
@@ -241,7 +212,9 @@ output for the report:
      `restore: the application is stopped: make restart starts it again`, and `make restart`
      prints `OK: stage runs <sha> (restarted with the current .env)`.
 
-If something fails, `sh "$STANDARD/scripts/proof.sh" clean`, fix it in the project folder, and
+If `create` refuses for `BUILD_SECRETS`, every check of this list is reported as not verified
+([`start.md`](start.md) section 3), not as failed. If something fails,
+`sh "$STANDARD/scripts/proof.sh" clean`, fix it in the project folder, and
 run the whole list again in a new proof copy. At the end, `clean` the same way.
 
 ## 5. Hand over
@@ -253,13 +226,14 @@ with a trigger, the owner's steps below) into the backlog the owner named in ste
 ([DOC-02](../standard/06-docs.md)). Then report in the report folder
 (`~/audits/<repo>/<YYYY-MM-DD>/`, the page of [`start.md`](start.md) section 3): `00-summary.md`
 (what was created, what could not be verified, and the steps only the owner can do: create the
-remote repository and push; open the project in a new Claude Code session, trust the folder, and
-check that the Errors tab of `/plugin` is empty and that a type error shows its diagnostic after
-an edit ([AI-07](../standard/05-agents.md)); set up the servers by `docs/how-to/operations.md`
-(read access to the repository, and to a private dependency if there is one, since each server
-builds its own images; `.env` with `chmod 600`; the backup folder and the log archive folder
-chosen in step 1); the off-server backup copy and, with prod, the heartbeat monitor of
-`BACKUP_HEARTBEAT_URL` by `docs/how-to/backups.md`; with health monitoring, the monitor of the
+remote repository and push; with language servers, open the project in a new Claude Code session,
+trust the folder, and check that the Errors tab of `/plugin` is empty and that a type error shows
+its diagnostic after an edit ([AI-07](../standard/05-agents.md)); set up the servers by
+`docs/how-to/operations.md` (read access to the repository, and to a private dependency if there
+is one, since each server builds its own images; `.env` with `chmod 600`; with backups the backup
+folder, and the log archive folder unless there is none, as chosen in step 1); with backups, the off-server backup copy and the
+heartbeat monitor of `BACKUP_HEARTBEAT_URL`, each if chosen, by `docs/how-to/backups.md`; with
+health monitoring, the monitor of the
 `status` service and one alarm drill on stage (stop `status` there and see the alert) by
 `docs/how-to/operations.md`), `01-current-state.md` (the outputs of step 4 as
 `- <fact> — <evidence>`), and `questions.md` if anything is still open, in the formats of

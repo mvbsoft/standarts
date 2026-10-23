@@ -34,12 +34,13 @@ Read `$STANDARD/standard/README.md` and every file it lists, in full, before any
 | `docs/reference/project-registry.md` whose `Standard:` field names a newer release | — | stop and tell the owner which release to use |
 | an empty folder, or only a `.git` folder and a README | new | [`new.md`](new.md) |
 
-**Update** only applies a new release: it keeps every answer the registry records and asks only
-about what the new release adds. To change an answer (stage no longer wanted, mutation testing
-added, another backup folder), the owner sets the project up again: adopt runs as if the project
-had never been set up, asks every question of [`new.md`](new.md) step 1 and adopt phases 0 and 4
-again, shows the answer the registry records next to each as a reference (never as the answer),
-and its plan adds or removes the parts the new answers change.
+**Update** applies a new release: it keeps every answer the registry records, asks only the
+questions the new release adds, and offers to revisit earlier answers one by one. To go through
+all of them (stage no longer wanted, mutation testing added, another backup folder), the owner sets
+the project up again: adopt runs as if the project had never been set up, asks every question of
+[`questions.md`](questions.md) and of adopt phase 0 again, shows the answer the registry records
+next to each as a reference (never as the answer), and its plan adds or removes the parts the new
+answers change.
 
 Say which mode you chose and why in one sentence (for the two rows that ask, ask first), then
 follow the next file.
@@ -47,15 +48,24 @@ follow the next file.
 ## 3. Rules for every mode
 
 **Talking to the owner**
-- Talk to the owner in the language they write in; write report files in that language too, except
-  tables of technical names, paths and commands, which stay as they are.
+- First find the owner's language: the language they write in or, when that is not clear, ask.
+  Talk in it, ask every question translated into it as you go (the prompt files and
+  [`questions.md`](questions.md) are the English source and are never translated in the
+  repository), and write report files in it, except tables of technical names, paths and commands,
+  which stay as they are. This is the language of the conversation; the language of the project's
+  documentation is a question of its own (S-24).
 - Stop after every phase of the mode file: say in a few lines what the phase found or did, show
   the questions it raised, and wait for the owner's answer before the next phase. In a run without a
   person (`claude -p` and the like) never wait: write the questions into the report's open
   questions, build the plan on your recommended option and mark each such choice `assumption`.
-  Such a run ends with the report and changes nothing in the project: adopt stops after phase 5,
-  update before its step 4, and new after step 2, with the plan of step 2 in `00-summary.md` and
-  its questions in `questions.md`.
+  Such a run ends with the report and changes nothing in the project (except what `make bootstrap`
+  writes): adopt stops after phase 5, update before its step 4, and new after step 2, with the plan
+  of step 2 in `00-summary.md` and its questions in the report's `questions.md`.
+- The setup questions are those of [`questions.md`](questions.md), asked one at a time, theme by
+  theme, in its order, each with your recommendation first; the ones the facts or the registry
+  answer are said, not asked, as that file says. In Claude Code, ask each in a choice window (the
+  AskUserQuestion tool); in another agent, one question per message, with its options numbered.
+  They are asked in the conversation, never on the report page.
 - Every question to the owner is written so that it reads without the standard: the problem in
   plain words with one concrete example, the options with their pros and cons, your recommendation
   and why, and the facts behind it (file and line, a command and its output, or a URL with a quoted
@@ -73,8 +83,10 @@ follow the next file.
   the host.
 - In dev you may build images, start and stop the dev stack and run the targets of the standard's
   `Makefile` ([ENV-05](../standard/02-environments.md)), including `make gates`, `make verify` and
-  `make image-scan`, but push nothing to the project's remote: branches are pushed only in a proof
-  copy (next point). A target of the project's own `Makefile` (adopt, or the block "Project
+  `make image-scan` (before adopt phase 6 and update step 4, `make fix`, `make seed`,
+  `make migrate`, `make restore` and `make dev`, which runs the migrations, only after the owner's
+  yes: they change the code or the dev data), but push nothing to the project's remote:
+  branches are pushed only in a proof copy (next point). A target of the project's own `Makefile` (adopt, or the block "Project
   targets") may do anything, such as reset the dev database: read its recipe first, run it only
   when it writes no data, and otherwise ask the owner. Say at the start that builds take time and
   disk space. Destructive commands follow the one rule of
@@ -95,8 +107,8 @@ follow the next file.
   `prod`, `clean` and `path` also in `$t/p` or `$t/wt`); `t=$(sh "$STANDARD/scripts/proof.sh" path)`
   gives `$t`.
 
-  ```sh
-  sh "$STANDARD/scripts/proof.sh" create | stage | prod | clean | path
+  ```
+  sh "$STANDARD/scripts/proof.sh" <create|stage|prod|clean|path>
   ```
 
   - `create` copies the project as it is now, files not committed yet included, as one commit in
@@ -156,7 +168,8 @@ follow the next file.
   what they report before you rely on it.
 
 **The page for the owner**
-- The owner reads the report, answers the questions and sees the plan on one page per project,
+- The owner reads the report, answers its questions (`Q-<n>` of the report's `questions.md`; the
+  setup questions are asked in the conversation, above) and sees the plan on one page per project,
   built from [`$STANDARD/templates/report-site/`](../templates/report-site/README.md). You write
   only the md files it reads; the page shows them. Publish it if your environment can publish a
   page (in the Claude app: an artifact), give the owner the link, and read the answers the page
@@ -164,4 +177,4 @@ follow the next file.
 - If the page cannot be shown, say plainly what did not start, why (for example "this terminal has
   no tool that publishes pages"), and how to make it work as intended (for example "open this
   session in the Claude app"). Then continue with the same md files in the report folder, and ask
-  the questions in the chat in one message.
+  the questions in the chat, one at a time as above.

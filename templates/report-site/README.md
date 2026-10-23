@@ -14,9 +14,14 @@ The page on which the agent shows the owner a report, its questions and its plan
   (in Claude Code: the working folder or the scratchpad), copy `index.html` and the md files into
   such a folder outside the project and publish from there; the report folder stays the source.
 - **Answers:** the owner picks an option or "own option" and may comment. Where the page can store
-  data, every answer is saved as the document `answers/<question id>` with the fields `choice`
-  (the option letter or `other`), `note` and `updatedAt`; read them from the artifact's database
-  (collection `answers`) when the owner says they answered. The button "Copy answers" always
-  works too: the owner pastes the text into the chat.
+  data, every answer is saved as the document `answers/<Q-n>-<hash of the title>` with the fields
+  `id` (`Q-<n>`), `title`, `choice` (the option letter or `other`), `note` and `updatedAt`; read
+  them from the artifact's database (collection `answers`) when the owner says they answered, and
+  take an answer only where both `id` and `title` match the question. A renumbered or retitled
+  question starts without an answer. The button "Copy answers" always works too: the owner pastes
+  the text into the chat.
+- **Links:** a link to a report file (`02-deviations.md`, `questions.md#q-2-<title>`) opens its tab
+  and scrolls to the heading. Headings get the ids GitHub gives them, so write the `#` part as on
+  GitHub; a question can also be reached as `questions.md#Q-<n>`.
 - **No page possible:** say what did not start, why, and how to make it work; then use the md files
   and the chat ([`prompt/start.md`](../../prompt/start.md), section 3).

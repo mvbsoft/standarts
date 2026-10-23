@@ -27,12 +27,11 @@ Sometimes the project is right, and then it is a proposal for the standard (`pro
    ([TYP-01](../standard/07-project-types.md)), its languages, and whether a registry exists.
 2. If a previous report of this project exists (`~/audits/<repo>/`, a registry, an ADR about
    environments), read it: you update it rather than start over.
-3. Ask the owner, in one message: the project type and the environments you propose from TYP-01
-   (unless the registry profile already records them; when the project is set up again, show
-   what it records and ask anyway, as [`start.md`](start.md) section 2 says); the three or four
-   biggest deviations you expect; whether anything is out of scope; and whether you should compare
-   it with any other of their projects (if yes, which folders; "none" is a normal answer). Keep
-   the answers for the report and the registry of phase 5.3: phase 4 does not ask them again.
+3. Ask the owner, one question at a time ([`start.md`](start.md) section 3): S-01 and S-02 of
+   [`questions.md`](questions.md), the type and the environments; the three or four biggest
+   deviations you expect; whether anything is out of scope; and whether you should compare it with
+   any other of their projects (if yes, which folders; "none" is a normal answer). Keep the
+   answers for the report and the registry of phase 5.3: phase 4 does not ask them again.
 
 ## Phase 1 — collect facts (measure, never assume)
 
@@ -97,7 +96,7 @@ with secret values: use `config --no-interpolate`, and record variable names, ne
   write, OPS-01), the healthcheck, the notifications (`BACKUP_NOTIFY_URL`), the heartbeat (`BACKUP_HEARTBEAT_URL`: a
   GET after each good daily run to a monitor on another machine that alerts when it is missing;
   recommended for prod), the variables in `.env.example`. A data store without a backup is
-  `blocker`; a backup without a drill is `major`; prod without a heartbeat monitor is a finding
+  `blocker`, unless registry section 0 records the owner's no (S-06); a backup without a drill is `major`; prod without a heartbeat monitor is a finding
   unless the registry records why it has none.
 - Tuning ([OPS-02](../standard/03-operations.md)): for every component, the container limit and the
   actual values of the parameters listed in `$STANDARD/catalog/README.md`. Take them from the
@@ -192,7 +191,8 @@ Record them in the report's sources file with what each one confirms.
 Build the deviation table: rule ID → what the project does → evidence → severity (`blocker` breaks
 the Docker axiom or threatens data, `major` is a wrong environment shape or a missing mandatory
 item, `minor` is duplication, drift, leftovers) → proposed action (`keep`, `fix`, `move`, `merge`,
-`drop`, `add`, `owner decision`) → effort (S/M/L) → depends on.
+`drop`, `add`, `owner decision`) → effort (S/M/L) → depends on. A part that registry section 0
+records as declined by the owner is not a deviation.
 
 Then four lists: superfluous, duplicated, outdated, badly organised. Every item names its evidence.
 Also list what the project does BETTER than the standard: a candidate for changing the standard, not
@@ -201,30 +201,16 @@ a deviation to fix.
 ## Phase 4 — ask before deciding
 
 Collect the decisions only the owner can make, written as [`start.md`](start.md) section 3 says.
-Always ask, unless the registry or the owner's answer in phase 0 already settles them (when the
-project is set up again, ask each, with the registry's answer shown as a reference): the
-environments (registry profile); the branches stage and prod follow (`Makefile` settings; default
-`main` and `prod`); with stage or prod, whether the build needs a private dependency (each server
-builds its own images, so it then needs read credentials for it there: a file outside git named in
-the `Makefile` setting `BUILD_SECRETS`, which the build mounts as a BuildKit secret, never baked
-into the image); and the questions of [`new.md`](new.md) step 1 that phase 1 did not answer by
-measuring (a server that runs gives its size, for example):
-- for a project with data on stage or prod, the folder of the backup sets on each server
-  (`BACKUP_DIR`): (a) the template's `./docker/backup/data` in the clone, (b) your advice after
-  phase 1 with its reason (where the project keeps its data today, a disk with more room), or
-  (c) a path of the owner's; where the off-server backup copy goes (`BACKUP_COPY_TO`; the
-  template's example is a rest-server the server can only write to,
-  `rest:https://<host>:<port>/<login>/`) and, with prod, which monitor on another machine receives the backup heartbeat
-  (`BACKUP_HEARTBEAT_URL`; recommended); until a server exists, the copy and the heartbeat wait in
-  registry section E as [TYP-01](../standard/07-project-types.md) says;
-- with stage or prod, health monitoring ([OPS-04](../standard/03-operations.md)) and the folder of
-  the log archive (`LOG_ARCHIVE_DIR`, [OPS-03](../standard/03-operations.md)), each with the
-  options of new.md step 1;
-- `LINT`, `TEST` and `SECRETS`: the command you propose for each from phase 1 and 2, or `off`;
-  mutation testing, yes or no; with a UI, a browser for the agent.
+First the questions of [`questions.md`](questions.md) that phase 0 did not ask, theme by theme.
+Phase 1 answers some (the lock files show whether there is a private dependency, S-05; the size of
+a server, S-04, only when the owner or the repository gives it, since phase 1 measures no server):
+say those answers with their evidence instead of asking. Base your recommendations on phases 1 and 2: the commands of the checks on the tools the
+project has, the advised backup and log folders on where the project keeps its data today.
 
-Every answer goes into section 0 of the registry of phase 5.3. Then every `owner decision` from
-phase 3 and every choice the standard leaves to the project.
+Every answer goes into section 0 of the registry of phase 5.3; a part the owner declines here
+leaves the deviation table of phase 3 the same way. Then every `owner decision` from phase 3 and
+every choice the standard leaves to the project; their answers go into section 0 too, each under a
+short name (the finding's ID, `X-<n>`, for a decision of phase 3).
 
 ## Phase 5 — target state and plan
 
@@ -246,8 +232,8 @@ phase 3 and every choice the standard leaves to the project.
    which go, with a reason for each.
 3. **Registry**: a filled `docs/reference/project-registry.md` for the target state in the format of
    [DOC-03](../standard/06-docs.md), with changing rows marked `→`, and every answer of phases 0
-   and 4 in its section 0, each with its reason (a check turned `off` and a part the owner left
-   out included).
+   and 4 in its section 0, each under its `S-nn` or a short name (`scope`, `compared with`, `X-<n>`)
+   and with its reason (a check turned `off` and a part the owner left out included).
 4. **Plan**: ordered tasks, each with a name, a one-sentence goal, the files it touches, "done when"
    criteria that a command can check, the tests and docs it owes, dependencies, effort and the ADR
    it needs (if it changes an architectural decision). Group them into sessions of at most one `L`
@@ -336,14 +322,15 @@ phase 3 and every choice the standard leaves to the project.
      [`new.md`](new.md) step 4 passes in a proof copy, and `make stage` in `$t/p` refuses. Depends
      on **Dockerfiles**, **Compose rule check** (every deploy runs it) and **Tuning** (`make stage`
      ends with `make tuning-check`).
-   - **Backups**: the `backup` service of [OPS-01](../standard/03-operations.md) from
+   - **Backups** (when the owner wants them, S-06): the `backup` service of
+     [OPS-01](../standard/03-operations.md) from
      `$STANDARD/templates/project/docker/backup/`, with its compose blocks and `.env.example`
      variables from the template files (`BACKUP_DIR` as the owner chose), a module for every
      store (the template's `postgres` module is the pattern for others and needs PostgreSQL 15 or
      later; a store of another kind gets a module of its own, written to the interface in
      `docs/how-to/backups.md`, "Writing a module for another store"), `backup` in the Makefile's
      `IMAGES` (with stage or prod) and `docs/how-to/backups.md` from its starting point. Done when
-     every check of the data-store item of [`new.md`](new.md) step 4 passes in a proof copy, for
+     every check of the backups item of [`new.md`](new.md) step 4 passes in a proof copy, for
      every store and with that store's own tool, each where that item says.
    - **Health monitoring** (with stage or prod, when the owner wants it,
      [OPS-04](../standard/03-operations.md)): the `status` service from
@@ -391,13 +378,13 @@ phase 3 and every choice the standard leaves to the project.
      `make status` and the row counts compared with the dump. The old stack's data is removed only
      after the owner confirms. The old stack has no `backup` service of this standard, so the data
      moves with the database's own dump and restore; a later move to a new server restores from the
-     off-server copy instead (`make restore FROM=copy SET=latest NO_SAFETY=1` before `make prod`,
-     as `docs/how-to/backups.md` says). The agent writes the section and runs it end to end in a
+     off-server copy instead (`make restore FROM=copy SET=<set> NO_SAFETY=1` before `make prod`,
+     with the set named as `docs/how-to/backups.md` says). The agent writes the section and runs it end to end in a
      proof copy ([`start.md`](start.md) section 3) against a copy of the old stack in a folder
      directly in `$t` (`clean` finds it there by its compose file), with its own project name and volume names (no `name:`,
-     `COMPOSE_PROJECT_NAME` or external volume shared with a stack on this machine) and free host
-     ports, never on a server. Done when that run ends with `OK: prod runs <sha>` and the same row
-     count per table as the old stack.
+     `COMPOSE_PROJECT_NAME` or external volume shared with a stack on this machine), every external
+     network renamed with `-proof` after its name, and free host ports, never on a server. Done when
+     that run ends with `OK: prod runs <sha>` and the same row count per table as the old stack.
    - **Mutation testing** (only when the owner chose it in phase 4,
      [QLT-01](../standard/04-quality.md)): the tool in the `dev` stage with a pin, the `mutation`
      service of `docker-compose.dev.yml` with `MUTATION_CPUS` and `MUTATION_MEM` in `.env.example`,
@@ -406,17 +393,17 @@ phase 3 and every choice the standard leaves to the project.
      [`templates/README.md`](../templates/README.md#mutation-testing-declined) names is removed (the `Makefile` settings and
      targets too), and a mutation tool the project has is a `drop` finding the owner confirms. Done when the mutation check of [`new.md`](new.md)
      step 4 passes in a proof copy.
-   - **Language servers** ([AI-07](../standard/05-agents.md)): if a language server or the
-     `docker-lsp` plugin is missing or its files differ from the template, add each language's
-     server to the `dev` stage with a pin, copy the template files with only the project's
+   - **Language servers** (when the owner wants them, S-21, [AI-07](../standard/05-agents.md)): if
+     a language server or the `docker-lsp` plugin is missing or its files differ from the
+     template, add each language's server to the `dev` stage with a pin, copy the template files with only the project's
      languages, remove official `*-lsp` plugins. Done when the language-server check of
      [`new.md`](new.md) step 4 passes in a proof copy. That Claude Code loads the plugin (a new
      session in the trusted folder, a type error shows its diagnostic after an edit, the Errors
      tab of `/plugin` is empty) is the owner's step at the end of phase 6.
-   - **Hooks** ([AI-05](../standard/05-agents.md), [AI-06](../standard/05-agents.md),
-     with a `dev` service): from `$STANDARD/templates/agent-hooks/`, `.claude/hooks/post-edit.sh`,
-     `pre-bash.sh`, `check-file.sh`, `check-command.sh` and `json-get.awk` verbatim (or the whole
-     `.claude/hooks/` folder), `.claude/hooks/checks.conf` from its starting
+   - **Hooks** (when the owner wants them, S-20, [AI-05](../standard/05-agents.md),
+     [AI-06](../standard/05-agents.md)): from `$STANDARD/templates/agent-hooks/`,
+     `.claude/hooks/post-edit.sh`, `pre-bash.sh`, `check-file.sh`, `check-command.sh` and
+     `json-get.awk` verbatim (or the whole `.claude/hooks/` folder), `.claude/hooks/checks.conf` from its starting
      point (a `check` line for the formatter check, the linter and, where it checks one file, the
      type checker of each language, the same tools as `LINT`; `allow` lines only for the host
      exceptions of registry section E), and the hooks of its `settings.fragment.json` merged into
@@ -437,8 +424,7 @@ phase 3 and every choice the standard leaves to the project.
    `make check-compose` is green and every exception in it has a reason; `make gates` is green in
    under five minutes, and `make verify` is green with every base target run once (its summary
    shows `ok`, `skip` only for an empty `E2E` or `SECURITY`, `off` only where the owner chose it;
-   its `infra`
-   runs `make backup-test` in dev); the checks of [`new.md`](new.md) step 4 that apply (the pre-push warning
+   with backups its `infra` runs `make backup-test` in dev); the checks of [`new.md`](new.md) step 4 that apply (the pre-push warning
    and the refused second stage clone among them) pass in a
    proof copy ([`start.md`](start.md) section 3), `make image-scan` after the first
    `make stage`; no host tool is called outside registry section E; every component in the
@@ -453,17 +439,19 @@ stays outside the repository. Then, one task at a time:
    placeholders and the `Makefile` settings and "Project targets" blocks; starting points are
    filled in for the project ([`templates/README.md`](../templates/README.md)).
 2. Run the task's "done when" commands, and `make gates` once the task **Dockerfiles** is done.
-   If one fails, stop, explain what failed and
-   why, and propose a fix; do not move to the next task.
+   A check that needs a proof copy when `proof.sh create` refuses for `BUILD_SECRETS` is reported
+   as not verified ([`start.md`](start.md) section 3), not as failed. If one fails, stop, explain
+   what failed and why, and propose a fix; do not move to the next task.
 3. Commit the task on its own, with its tests and docs and the registry update
    ([PRN-05](../standard/01-principles.md)).
 4. Mark the task done in the backlog.
 
 When the last task is done, run the verification list of phase 5.5, set the registry's `Standard:`
 field to this release, and report what is left, including the steps only the owner can do:
-- on a server: build credentials for a private dependency if there is one; `chmod 600 .env`; the
-  backup folder and the log archive folder chosen in phase 4; the off-server backup copy; with prod
-  the heartbeat monitor of `BACKUP_HEARTBEAT_URL`; with health monitoring, the monitor of the
+- on a server: build credentials for a private dependency if there is one; `chmod 600 .env`; with
+  backups the backup folder, and the log archive folder unless there is none, as chosen in phase 4;
+  with backups, the off-server backup copy and the heartbeat monitor of `BACKUP_HEARTBEAT_URL`,
+  each if chosen; with health monitoring, the monitor of the
   `status` service and one alarm drill on stage (stop `status` and see the alert), by
   `docs/how-to/operations.md`;
 - the variables `.env.example` gained, renamed (with the new name) or removed in this plan, from
@@ -472,15 +460,18 @@ field to this release, and report what is left, including the steps only the own
   dev `.env` of every working copy (`make bootstrap` names what each lacks); a second working copy of the
   owner's gets a dev stack of its own (`make dev NAME=<n>` before it has a `.env`, else
   `DEV_SUFFIX=-<n>` and an empty `APP_PORT=` in it), since a second plain clone is refused;
-- in a new Claude Code session in the trusted project folder: the Errors tab of `/plugin` is
-  empty and a type error shows its diagnostic after an edit ([AI-07](../standard/05-agents.md)).
+- with language servers, in a new Claude Code session in the trusted project folder: the Errors
+  tab of `/plugin` is empty and a type error shows its diagnostic after an edit
+  ([AI-07](../standard/05-agents.md)).
 
 ## Report
 
 Write to `~/audits/<repo>/<YYYY-MM-DD>/`, outside the repository, so nothing reaches git and nothing
 needs ignoring. It is a working document for this migration; once the plan is in the backlog and
 executed, it can be deleted. The page for the owner ([`start.md`](start.md), section 3) shows these
-files: `00`–`02` on the tab "State", `questions.md` on "Questions", `03`, `04`, `05` and
+files: `00`–`02` on the tab "State", the report's `questions.md` (its `Q-<n>` questions; the
+setup questions of [`questions.md`](questions.md) are asked in the conversation) on "Questions",
+`03`, `04`, `05` and
 `proposals.md` on "Plan". Use exactly these headings and columns, translated into the report's
 language, so that every report reads the same; the markers the page reads stay exactly as written
 here, in any language: `### Q-<n>.`, `- [A] `, and `Recommendation:`.

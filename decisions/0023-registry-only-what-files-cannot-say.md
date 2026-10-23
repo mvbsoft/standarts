@@ -10,7 +10,7 @@ An earlier registry listed versions, image stages and pins next to the reason fo
 
 ## Decision
 
-`docs/reference/project-registry.md` holds only what no other file can say: why each component is there, what holds data and is backed up, the owner's answers when the standard was applied, and where the project deviates from the standard. It has section 0 (the profile and the owner's decisions, each with its reason), section A (components and tools, with the problem each solves) and section E (deviations), and every row links to the file that defines the component. The sections keep their letters so that references to "section E" stay valid. An update reads the answers and does not ask again; changing an answer means setting the project up again. Versions, stages, pins and settings live only in their own files, so a version bump changes only that file.
+`docs/reference/project-registry.md` holds only what no other file can say: why each component is there, what holds data and is backed up, the owner's answers when the standard was applied, and where the project deviates from the standard. It has section 0 (the profile and the owner's decisions, each with its reason), section A (components and tools, with the problem each solves) and section E (deviations), and every row links to the file that defines the component. The sections keep their letters so that references to "section E" stay valid. An update reads the answers, asks only the questions a release adds and offers to revisit the earlier ones; setting the project up again goes through all of them. Versions, stages, pins and settings live only in their own files, so a version bump changes only that file.
 
 ## Options considered
 

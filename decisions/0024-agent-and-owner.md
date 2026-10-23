@@ -2,7 +2,7 @@
 
 > English · [Українська](0024-agent-and-owner.uk.md)
 
-**Status:** accepted · **Date:** 2026-10-18 · **Rules:** AI-01 (the rules in `AGENTS.md`); prompt: [`start.md`](../prompt/start.md) section 3, [`adopt.md`](../prompt/adopt.md))
+**Status:** accepted · **Date:** 2026-10-18 · **Rules:** AI-01 (the rules in `AGENTS.md`); prompt: [`start.md`](../prompt/start.md) section 3, [`adopt.md`](../prompt/adopt.md)
 
 ## Context
 

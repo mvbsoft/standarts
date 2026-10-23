@@ -41,8 +41,8 @@ update or to set up again:
 | The project | Mode | Result |
 |---|---|---|
 | has no registry yet | adopt | an audit report in `~/audits/<repo>/<date>/`, a plan in the project's backlog, the changes after approval |
-| was set up by an older release | update | only the rules and templates that changed between the two releases; what you decided before, recorded in the registry, is not asked again |
-| is set up, and you want to change your own choices (stage, mutation testing, backups) | set up again | the agent asks every question from the start, shows your current answers, and brings the project to the new ones |
+| was set up by an older release | update | only the rules and templates that changed between the two releases and the questions the new release adds; then the agent offers to revisit your earlier answers one by one |
+| is set up, and you want to go through all your choices again (stage, mutation testing, backups) | set up again | the agent asks every question from the start, shows your current answers, and brings the project to the new ones |
 | does not exist yet (empty folder) | new | the skeleton of a new project that meets the standard, proven to work, committed after approval |
 
 The report stays outside every repository and can be deleted after the migration. If something in
@@ -70,6 +70,6 @@ from this repository is copied in except the templates.
 ## Versions
 
 Releases are git tags `vMAJOR.MINOR.PATCH` on `main`. A major release means projects must change
-something (a new mandatory rule is major), a minor one adds rules or templates that projects may take
+something (a new rule or part that projects cannot decline is major), a minor one adds rules or templates that projects may take
 up, a patch only clarifies text. Each project's registry names the release it follows. How the
 standard itself is developed: [CONTRIBUTING](CONTRIBUTING.md). Licence: [MIT](LICENSE).

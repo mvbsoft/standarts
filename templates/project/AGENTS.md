@@ -44,7 +44,10 @@ This project follows the standard `<STANDARD_REPO>` at the release named in
   `make restore`, a push or merge into `<STAGE_BRANCH>` or `<PROD_BRANCH>` (the servers deploy what
   those branches hold) and deleting data, and a `make` command that goes on despite a warned
   estimate (`RISK=yes`), are run only after the owner's explicit yes in this session, for that
-  command. A yes for one command is not a yes for the next. `make restore` asks
+  command. A yes for one command is not a yes for the next. One `RISK=yes` accepts every warned
+  estimate of that run, not only the one you saw: name to the owner every one it may meet (the
+  free space for the images, the log archive and the backup, and a failed backup or copy before
+  the migration) before you ask. `make restore` asks
   a person for the database name; an agent has no terminal, so it adds `CONFIRM=yes` on the
   command line only after that yes.
 - The exception is a proof copy that the standard's prompt sets up (`scripts/proof.sh`): inside

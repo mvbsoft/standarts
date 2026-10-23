@@ -6,7 +6,8 @@ A map: what a project looks like, what you do in each situation, which command d
 the details are. Every rule has an ID such as `ENV-09`; the rules are in
 [`standard/`](standard/README.md), the reasons in [`decisions/`](decisions/), the exact steps and
 messages in the project's own `docs/how-to/` (the files in [`templates/project`](templates/project/docs/how-to/operations.md)).
-Levels: **M** mandatory, **R** recommended (declining it is recorded with a reason), **O** optional.
+Levels: **M** the core or strongly advised, **R** advised, **O** offered
+([how to read them](standard/README.md#how-to-read-it)).
 
 ## 1. The idea
 
@@ -45,13 +46,22 @@ which environment it is, and a command of another environment refuses to run the
 
 ## 3. What you do, by situation
 
+### What you are asked
+
+`new`, `adopt` and setting the project up again ask about each choice of TYP-01, one question
+at a time, in your language: what the part gives, an example, the risk without it and the agent's
+advice. What the project's files already answer is not asked. Your answers go into registry
+section 0, and a part you decline is not counted as a deviation. The core, the 24 choices and their
+defaults: [TYP-01](standard/07-project-types.md#the-choices); the questions:
+[`prompt/questions.md`](prompt/questions.md); why: [D-0028](decisions/0028-interactive-setup.md).
+
 ### A new project
 
 Paste the prompt from the [README](README.md) into the agent in an empty folder
 (mode `new`). It asks what only you can decide, creates the skeleton from
 [`templates/`](templates/README.md), proves in a throwaway copy that it works, and commits after
 your approval. Yours afterwards: the remote repository and the first push, the servers
-([First server](#the-first-server)), the off-server backup copy and its monitor, and the monitor of the status service if you chose it.
+([First server](#the-first-server)), and, if you chose them, the off-server backup copy, the monitor of its heartbeat and the monitor of the status service.
 
 ### An existing project
 
@@ -64,7 +74,8 @@ removed only after you confirm.
 ### A newer release, or other choices
 
 Mode `update`: only what changed between the releases, by the decisions
-already in the registry. To change your own choices (switch stage off, add mutation testing), set
+already in the registry; it asks the questions the release adds and offers to revisit your earlier
+answers. To go through all your choices (switch stage off, add mutation testing), set
 the project up again: the agent asks every question afresh and brings the project to the new
 answers.
 
@@ -111,8 +122,8 @@ adds CI that calls the same `make` commands ([known limitations](standard/README
 Read access to the repository, a clone, `.env` from `.env.example` (`chmod 600`, `PROJECT_ENV`,
 every `change-me` replaced, `DOCKER_GID`), the front proxy (your own TLS reverse proxy; the project does
 not contain it), the first `make stage` / `make prod` (it builds the
-images on the server); then the off-server backup copy and the heartbeat, `make restart` and
-`make backup-copy-check`; the monitor of the status service, if chosen. Step by step:
+images on the server); then, for what you chose, the off-server backup copy and the heartbeat
+(`make restart` and `make backup-copy-check`) and the monitor of the status service. Step by step:
 [operations](templates/project/docs/how-to/operations.md), [backups](templates/project/docs/how-to/backups.md).
 
 ### Shipping to stage and prod
@@ -156,7 +167,7 @@ monitor after each good day, so a dead server is noticed too. In dev nothing run
 | prove a restore works | `make backup-drill` (`SET=<set>`: that set) |
 | check the off-server copy | `make backup-copy-check` |
 | restore data | `make restore`: checks the set, shows what it replaces, asks for the database name; first makes a safety set (`SET=before-restore` returns to it); on a server it stops the application, and `make restart` starts it again |
-| a new server from the copy | the same passwords and `PROJECT_ENV`, then `make restore FROM=copy SET=latest NO_SAFETY=1`: [backups](templates/project/docs/how-to/backups.md#a-new-server-from-the-off-server-copy) |
+| a new server from the copy | the same passwords and `PROJECT_ENV`, then `make restore FROM=copy SET=<set> NO_SAFETY=1`, the set from `make backup-list FROM=copy`: [backups](templates/project/docs/how-to/backups.md#a-new-server-from-the-off-server-copy) |
 
 ## 4. The checks
 

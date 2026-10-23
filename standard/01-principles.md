@@ -96,6 +96,8 @@ An exception to the standard is allowed only when all of these hold:
 3. it states what removes it (an event or a date).
 
 Host exceptions are listed only there; `AGENTS.md` links to that section instead of repeating it.
+A part the owner declined when the standard was applied is not an exception: its answer is in
+registry section 0 ([DOC-03](06-docs.md#doc-03-component-registry-m)).
 "It has always been this way" is not a reason.
 
 ### PRN-10. Every project is worked the same way (M)

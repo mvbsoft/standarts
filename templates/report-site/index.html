@@ -37,7 +37,7 @@ h1{font-size:24px;margin:4px 0 2px}
 .save.err{color:var(--warn)}
 .q{background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--rule);border-radius:8px;padding:6px 16px 14px;margin:14px 0}
 .q.answered{border-left-color:var(--ok)}
-.q h3{font-size:17px;margin:10px 0 4px}
+.q h3{font-size:17px;margin:10px 0 4px;scroll-margin-top:72px}
 .q .id{font:600 12px var(--mono);color:var(--accent);margin-right:6px}
 .opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--rule);border-radius:6px;padding:8px 10px;margin:6px 0;cursor:pointer}
 .opt input{margin-top:4px}
@@ -77,6 +77,15 @@ function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className
 const PURIFY={FORBID_TAGS:['form','input','button','textarea','select','style'],FORBID_ATTR:['style']};
 function md(text){const d=el('div','md');d.innerHTML=DOMPurify.sanitize(marked.parse(text),PURIFY);return d;}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function plain(s){return el('span','',DOMPurify.sanitize(marked.parseInline(s),PURIFY)).textContent;}
+
+/* headings get GitHub's ids, so the report's links (file.md#slug) reach them: lower case, punctuation
+   dropped, spaces to hyphens, a repeat in the same file gets -1, -2. The page's ids carry HID, so a
+   heading cannot take the name of one of the page's own elements or globals. */
+const HID='h-';
+function slug(s){return String(s).trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}\p{Pc}\- ]/gu,'').replace(/ /g,'-');}
+function slugs(texts){const seen=Object.create(null);return texts.map(t=>{const base=slug(t);let s=base;while(s in seen){seen[base]++;s=base+'-'+seen[base];}seen[s]=0;return s;});}
+function nameHeadings(root){const hs=[...root.querySelectorAll('h1,h2,h3,h4,h5,h6')];slugs(hs.map(h=>h.dataset.text||h.textContent)).forEach((s,i)=>{hs[i].id=HID+s;});}
 
 /* answers: the db capability when this view has it, the browser as a draft otherwise */
 const DRAFT='report-answers';
@@ -99,6 +108,10 @@ function save(id){
 }
 function saveState(ok){const s=document.querySelector('.save');if(!s)return;s.classList.toggle('on',ok);s.classList.toggle('err',!ok);s.textContent=ok?T('Answers are saved on this page: tell the agent "answered".','Відповіді зберігаються на сторінці: напиши агентові «відповів».'):T('Not saved: copy the answers into the chat.','Не збережено: скопіюй відповіді в чат.');}
 
+/* an answer belongs to its question by number and title: a renumbered or retitled question starts empty */
+function hash(s){let h=0x811c9dc5;for(const c of s){h^=c.codePointAt(0);h=Math.imul(h,0x01000193)>>>0;}return h.toString(16).padStart(8,'0');}
+function answerKey(q){return q.id+'-'+hash(q.title);}
+
 function parseQuestions(text){
   const qs=[];let q=null;
   text.replace(/<!--[\s\S]*?-->/g,'').split(/\r?\n/).forEach(line=>{
@@ -109,13 +122,14 @@ function parseQuestions(text){
     if((m=line.match(/^(?:Recommendation|Рекомендація):\s*([A-Z])\b/))){q.rec=m[1];return;}
     (q.opts.length?q.post:q.pre).push(line);
   });
+  qs.forEach(q=>{q.key=answerKey(q);});
   return qs;
 }
 
 function answersText(qs){
   const lines=[T('Answers to the questions:','Відповіді на питання:'),''];
   qs.forEach(q=>{
-    const a=answers[q.id]||{};const o=q.opts.find(o=>o.key===a.choice);
+    const a=answers[q.key]||{};const o=q.opts.find(o=>o.key===a.choice);
     lines.push(q.id+'. '+q.title);
     lines.push(T('Answer: ','Відповідь: ')+(a.choice==='other'?T('own option','свій варіант'):a.choice?(a.choice+(o?' — '+o.md.replace(/\*\*/g,'').split('.')[0]:'')):T('none','немає')));
     if(a.note&&a.note.trim())lines.push(T('Comment: ','Коментар: ')+a.note.trim().replace(/\n+/g,' / '));
@@ -138,29 +152,31 @@ async function questionsPanel(panel,text,my){
   const box=el('textarea');box.id='copy-box';box.readOnly=true;panel.appendChild(box);
   const cards={};
   qs.forEach(q=>{
-    const a=answers[q.id]=answers[q.id]||{};
-    const card=el('article','q');card.id=q.id;
-    card.appendChild(el('h3','','<span class="id">'+esc(q.id)+'</span>'+esc(q.title)));
+    const a=answers[q.key]=Object.assign(answers[q.key]||{},{id:q.id,title:q.title});
+    const card=el('article','q');card.dataset.q=q.id;
+    const h=el('h3','','<span class="id">'+esc(q.id)+'</span>'+esc(q.title));h.dataset.text=q.id+'. '+plain(q.title);
+    card.appendChild(h);
     if(q.pre.join('').trim())card.appendChild(md(q.pre.join('\n')));
     const fs=el('fieldset');fs.appendChild(el('legend','',T('Options','Варіанти')));
     const opt=(key,html,rec)=>{
       const lab=el('label','opt');
-      lab.innerHTML='<input type="radio" name="'+q.id+'" value="'+key+'"><span>'+html+(rec?'<span class="rec">'+T('recommended','рекомендовано')+'</span>':'')+'</span>';
+      lab.innerHTML='<input type="radio" name="'+q.key+'" value="'+key+'"><span>'+html+(rec?'<span class="rec">'+T('recommended','рекомендовано')+'</span>':'')+'</span>';
       const inp=lab.querySelector('input');inp.checked=a.choice===key;
-      inp.addEventListener('change',()=>{a.choice=key;save(q.id);refresh();});
+      inp.addEventListener('change',()=>{a.choice=key;save(q.key);refresh();});
       fs.appendChild(lab);
     };
     q.opts.forEach(o=>opt(o.key,'<b>'+o.key+'.</b> '+DOMPurify.sanitize(marked.parseInline(o.md),PURIFY),q.rec===o.key));
     opt('other','<b>'+T('Own option.','Свій варіант.')+'</b> '+T('Describe it in the comment.','Опиши його в коментарі.'),false);
     card.appendChild(fs);
     const lab=el('label','note',T('Comment','Коментар'));const ta=el('textarea');ta.value=a.note||'';
-    ta.addEventListener('input',()=>{a.note=ta.value;save(q.id);});
+    ta.addEventListener('input',()=>{a.note=ta.value;save(q.key);});
     lab.appendChild(ta);card.appendChild(lab);
     if(q.post.join('').trim())card.appendChild(md(q.post.join('\n')));
-    cards[q.id]=card;panel.appendChild(card);
+    cards[q.key]=card;panel.appendChild(card);
   });
+  nameHeadings(panel);
   function refresh(){
-    let n=0;qs.forEach(q=>{const ok=!!(answers[q.id]||{}).choice;if(ok)n++;cards[q.id].classList.toggle('answered',ok);});
+    let n=0;qs.forEach(q=>{const ok=!!(answers[q.key]||{}).choice;if(ok)n++;cards[q.key].classList.toggle('answered',ok);});
     bar.querySelector('#progress').textContent=T('Answered ','Відповіді: ')+n+T(' of ',' з ')+qs.length;
   }
   refresh();
@@ -180,14 +196,27 @@ async function show(tab){
   let any=false;
   for(const f of tab.files){
     const text=await load(f);if(my!==gen)return;if(text==null)continue;any=true;
-    if(f==='questions.md'){await questionsPanel(panel,text,my);continue;}
-    const d=el('section','doc');d.id=f;d.appendChild(el('p','file',esc(f)));d.appendChild(md(text));panel.appendChild(d);
+    if(f==='questions.md'){const w=el('section','qs');w.id=f;panel.appendChild(w);await questionsPanel(w,text,my);continue;}
+    const d=el('section','doc');d.id=f;d.appendChild(el('p','file',esc(f)));d.appendChild(md(text));nameHeadings(d);panel.appendChild(d);
   }
   if(!any)panel.appendChild(el('p','',T('Nothing here yet.','Тут поки нічого.')));
 }
 
-/* a link to a report file opens its tab instead of the raw md, then scrolls to the #id if there is one */
-document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const [f,id]=a.getAttribute('href').split('#');const tab=TABS.find(t=>t.files.includes(f));if(!tab)return;e.preventDefault();try{history.replaceState(null,'','#'+tab.id);}catch(_){}show(tab).then(()=>{const t=document.getElementById(id||f);if(t)t.scrollIntoView();});});
+/* a link to a report file opens its tab instead of the raw md, then scrolls to the heading its #slug
+   names (or to the question its #Q-<n> names); a bare #slug scrolls within the link's own file */
+function splitHref(h){const i=h.indexOf('#');let id=i<0?'':h.slice(i+1);try{id=decodeURIComponent(id);}catch(_){}return {f:(i<0?h:h.slice(0,i)).replace(/^\.\//,''),id:id};}
+function target(box,id){if(!box||!id)return box||null;const k=id.toLowerCase();return [...box.querySelectorAll('[id],[data-q]')].find(x=>x.id===HID+k||(x.dataset.q||'').toLowerCase()===k)||null;}
+document.addEventListener('click',e=>{
+  const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
+  const {f,id}=splitHref(a.getAttribute('href'));
+  const tab=f&&TABS.find(t=>t.files.includes(f));
+  if(f?!tab:!id)return;
+  e.preventDefault();
+  const go=()=>{const t=target(f?document.getElementById(f):a.closest('section[id]'),id);if(t)t.scrollIntoView();};
+  if(!tab){go();return;}
+  try{history.replaceState(null,'','#'+tab.id);}catch(_){}
+  show(tab).then(go);
+});
 
 (async()=>{
   const tabs=document.getElementById('tabs');

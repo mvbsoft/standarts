@@ -19,7 +19,7 @@ developer machine has prod. Every environment the project has follows its column
 | Protection | no default-named file, so a bare `docker compose up` fails (`no configuration file provided`) | secrets have no defaults (`${X:?}`), so neither file renders without an `.env` that sets them; `make stage` / `make prod` refuse to run in a clone whose `.env` is not that environment's, while a value in it is still `change-me`, and while `.env` (or a build-secret file) can be read by other users of the machine (`chmod 600`: it holds every secret of the environment) |
 | Healthcheck and restart | healthcheck on the sidecar services, which `dev` waits for; `dev` itself runs `sleep infinity` and has none (the application runs in it by `make run`); `restart` optional | healthcheck on every service; `restart: always`; `depends_on: condition: service_healthy`; `stop_grace_period` for databases |
 | Limits | `cpus` / `mem_limit` for heavy jobs: the `mutation` service (`MUTATION_CPUS` / `MUTATION_MEM` in `.env`), a browser; `logging` `json-file` 10m×3 | `deploy.resources.limits` on every service, with `memswap_limit` equal to the memory limit, so nothing swaps beyond it ([OPS-02](03-operations.md#ops-02-tuning-to-resources-m-where-factory-settings-do-not-fit-r-otherwise)); `logging` `json-file` 10m×3 |
-| Security | non-root, `no-new-privileges` | the same + `cap_drop: ALL` (adding back only a capability the service was shown to need, with the reason), `read_only` + tmpfs, no docker.sock (one template exception, see [ENV-03](#env-03-compose-rule-check-m-if-there-is-stage-or-prod)), published ports only on `127.0.0.1` (or `::1`) (public traffic arrives through the server's front proxy, which is not part of the project) |
+| Security | `dev` and `mutation` non-root, sidecars as their image runs them; `no-new-privileges` | non-root, `no-new-privileges`, `cap_drop: ALL` (adding back only a capability the service was shown to need, with the reason), `read_only` + tmpfs, no docker.sock (one template exception, see [ENV-03](#env-03-compose-rule-check-m-if-there-is-stage-or-prod)), published ports only on `127.0.0.1` (or `::1`) (public traffic arrives through the server's front proxy, which is not part of the project) |
 | Migrations | `make migrate`, run by `make dev` | run by `make stage` / `make prod` from the new image before the application is replaced, on every deploy (a re-deploy of the same commit included), so a migration already applied changes nothing when it runs again; they stay compatible with the previous image, so a rollback works without undoing them |
 
 What may differ between stage and prod, and what may not, is listed once, in
@@ -96,7 +96,9 @@ development clone. The dev, stage and prod files have different `name:` values, 
 containers, networks and named volumes (`<name>_<volume>`) never meet. Host ports and external
 network names are set by variables in `.env`, not by numbers in the files; the dev file writes a
 host port as `127.0.0.1:${<NAME>_PORT-<default>}:<container port>`, so that an empty value lets
-Docker pick a free port.
+Docker pick a free port. A variable whose name ends in `_PORT` is a host port: a second dev copy
+and a proof copy clear every such variable, so a port the application connects to is named
+otherwise (not `DB_PORT`).
 
 **Stage and prod: one copy of each per machine.** Compose names the containers, networks and
 volumes of a project after its `name:` line, and a stage clone's `name:` is the same wherever it

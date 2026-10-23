@@ -10,6 +10,8 @@ echo "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "usage: make release VER
 [ "$(git rev-parse --abbrev-ref HEAD)" = next ] || fail "run it on the next branch"
 [ -z "$(git status --porcelain)" ] || fail "the working tree is not clean"
 ! git rev-parse -q --verify "refs/tags/v$v" >/dev/null || fail "tag v$v already exists"
+! git rev-parse -q --verify refs/heads/main >/dev/null || git merge-base --is-ancestor main next \
+  || fail "main has commits that next has not, so main cannot fast-forward: merge main into next (git merge main), then release again"
 for q in .work/QUESTIONS.md .work/QUESTIONS.uk.md; do
   [ -f "$q" ] || fail "$q is missing, so open questions cannot be checked"
 done

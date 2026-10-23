@@ -2,7 +2,7 @@
 
 > Українська · [English](0024-agent-and-owner.md)
 
-**Статус:** прийнято · **Дата:** 2026-10-18 · **Правила:** AI-01 (правила в `AGENTS.md`); промпт: [`start.md`](../prompt/start.md), розділ 3, [`adopt.md`](../prompt/adopt.md))
+**Статус:** прийнято · **Дата:** 2026-10-18 · **Правила:** AI-01 (правила в `AGENTS.md`); промпт: [`start.md`](../prompt/start.md), розділ 3, [`adopt.md`](../prompt/adopt.md)
 
 ## Контекст
 
