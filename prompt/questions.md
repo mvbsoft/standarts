@@ -407,3 +407,32 @@ summary shows `skip`) or `off`. The tools of each category for each language are
   reads it. Another language of the owner's.
 - **Skipped when.** The existing docs are all in one language: say which.
 - **Answer goes to.** Section 0 only.
+
+### S-25. An independent check of the work
+
+- **What it is.** Who checks that the standard is in place as the plan says. Without it, the agent
+  that made a change also checks it, by the "done when" commands of each task and the
+  verification list at the end. With it, a separate agent that made none of the changes (a
+  subagent in Claude Code; in another agent, a new session with a fresh context) runs those
+  commands again, compares every file that came from a template with that template (`diff`), and
+  compares the plan with what was done: renamed files, containers and volumes, removed parts,
+  registry rows. It changes nothing and reports to you; a task it finds wrong is not done.
+- **Example.** A task renames the database volume, and its "done when" passes, but one compose
+  file still names the old volume: the independent check finds it before the next task builds on
+  it. Several projects of one owner end up with the same files, because each is checked against
+  the same templates.
+- **Risk without it.** The agent misses its own mistake in the same way twice, and a project
+  differs from the standard, or from the owner's other projects, without anyone knowing.
+- **Options.**
+  - After each task and at the end: mistakes are found while they are small; the slowest and the
+    most tokens.
+  - Only at the end: about a third of that; a mistake found then may mean redoing several tasks.
+  - The end check split over parallel subagents (by area: environments, data, checks, agent
+    tools): faster than one end check; more tokens than one.
+  - None beyond the agent's own checks: the cheapest; nobody but the author checks the work.
+- **Time and tokens.** Give the owner a rough estimate, and say it is rough: from the number of
+  tasks of the plan, how long their "done when" commands and builds took in the proof copy, and
+  how many files a check reads. Give it again with the plan (adopt phase 5, new step 2), when the
+  number of tasks is known, and let the owner change the answer there.
+- **Skipped when.** Never.
+- **Answer goes to.** Section 0 only.

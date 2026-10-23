@@ -237,7 +237,8 @@ short name (the finding's ID, `X-<n>`, for a decision of phase 3).
 4. **Plan**: ordered tasks, each with a name, a one-sentence goal, the files it touches, "done when"
    criteria that a command can check, the tests and docs it owes, dependencies, effort and the ADR
    it needs (if it changes an architectural decision). Group them into sessions of at most one `L`
-   or three `S`/`M` tasks. Write the first task so it can start without further questions. If the
+   or three `S`/`M` tasks. With an independent check (S-25), give its rough time and tokens for
+   this plan, as S-25 says. Write the first task so it can start without further questions. If the
    project has an issue tracker, give the plan in its format. Standard tasks and their "done when":
    - **Environments and compose files** (before **Makefile and README**, whose `make bootstrap`
      refuses a default-named file): `docker-compose.dev.yml`, `.stage.yml` and `.prod.yml` for the
@@ -442,11 +443,14 @@ stays outside the repository. Then, one task at a time:
    A check that needs a proof copy when `proof.sh create` refuses for `BUILD_SECRETS` is reported
    as not verified ([`start.md`](start.md) section 3), not as failed. If one fails, stop, explain
    what failed and why, and propose a fix; do not move to the next task.
-3. Commit the task on its own, with its tests and docs and the registry update
+3. With an independent check after each task (S-25 of [`questions.md`](questions.md)), let an
+   agent that made no change check the task as S-25 says; fix what it finds and check again.
+4. Commit the task on its own, with its tests and docs and the registry update
    ([PRN-05](../standard/01-principles.md)).
-4. Mark the task done in the backlog.
+5. Mark the task done in the backlog.
 
-When the last task is done, run the verification list of phase 5.5, set the registry's `Standard:`
+When the last task is done, run the verification list of phase 5.5 (with an independent check at
+the end, S-25, an agent that made no change runs it and compares the plan with the result), set the registry's `Standard:`
 field to this release, and report what is left, including the steps only the owner can do:
 - on a server: build credentials for a private dependency if there is one; `chmod 600 .env`; with
   backups the backup folder, and the log archive folder unless there is none, as chosen in phase 4;

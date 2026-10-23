@@ -11,7 +11,7 @@ that projects must act on; the update prompt re-audits the rules and templates n
   D-0001 to D-0028; the prompts `start` (modes: new, adopt, update, set up again), `adopt`, `new`,
   `update`; `scripts/proof.sh`, the proof copy for stage and prod on one machine.
 - The interactive setup (D-0028): the core every project has, and the owner's choices `S-01` to
-  `S-24` in TYP-01 with their defaults; the bank of questions `prompt/questions.md`, asked one at a
+  `S-25` in TYP-01 with their defaults; the bank of questions `prompt/questions.md`, asked one at a
   time in the owner's language; the answers in registry section 0, where a declined part is not a
   deviation; the new meaning of `M`, `R` and `O`.
 - The template `project` 1.0.0:

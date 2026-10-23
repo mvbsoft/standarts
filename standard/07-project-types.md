@@ -90,6 +90,7 @@ before the owner declines an M part, the agent explains the risk in detail. In "
 | S-22 | the browser for the agent (there is a UI) | R | yes | yes | [AI-08](05-agents.md) |
 | S-23 | where the backlog lives | M | a file in the repository, or a tracker | — | [DOC-02](06-docs.md) |
 | S-24 | the language of the documentation | M | the owner's language | — | [DOC-01](06-docs.md) |
+| S-25 | an independent check of the work (an agent that made no change) | R | after each task and at the end | yes | [PRN-05](01-principles.md) |
 
 #### A choice later
 

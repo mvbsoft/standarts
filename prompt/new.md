@@ -9,7 +9,7 @@ Stop after every step and wait for the owner, as [`start.md`](start.md) section 
 Ask what only the owner knows, one question at a time as [`start.md`](start.md) section 3 says.
 First what the project does, in a sentence or two, its name (the repository name, lowercase with
 dashes) and which data stores it needs (for example Postgres, Redis), if any; then the questions of
-[`questions.md`](questions.md), S-01 to S-24, with your recommendation for each. Every answer
+[`questions.md`](questions.md), S-01 to S-25, with your recommendation for each. Every answer
 goes into section 0 of the registry ([DOC-03](../standard/06-docs.md)) with its reason, under its
 `S-nn` or, for the first three, a short name (`name`, `description`, `data stores`);
 [`update.md`](update.md) does not ask them again unless the owner revisits one.
@@ -23,7 +23,8 @@ or written for this project's languages
 [QLT-01](../standard/04-quality.md) with exact pins, the lock file, the migration tool). Name every
 version you pin and where you took it from. Nothing goes in "just in case"
 ([PRN-06](../standard/01-principles.md)): a file that no rule or task of this project needs is left
-out. Show the list and wait.
+out. With an independent check (S-25), give its rough time and tokens for this list, as S-25 of
+[`questions.md`](questions.md) says. Show the list and wait.
 
 ## 3. Create
 
@@ -219,7 +220,9 @@ run the whole list again in a new proof copy. At the end, `clean` the same way.
 
 ## 5. Hand over
 
-With the owner's approval, set the registry's `Standard:` field to this release and make the first
+With an independent check (S-25 of [`questions.md`](questions.md)), an agent that made no change
+first checks the skeleton as S-25 says, and what it finds is fixed and checked again. Then, with
+the owner's approval, set the registry's `Standard:` field to this release and make the first
 commit: without `.git`, first `git init -b <STAGE_BRANCH>`; with one, on its current branch. Put
 the open items (registry section E rows
 with a trigger, the owner's steps below) into the backlog the owner named in step 1

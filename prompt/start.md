@@ -164,8 +164,9 @@ follow the next file.
   standard's cache (`~/.cache/standards/`) and temporary folders you delete afterwards. A change
   anywhere else, for example in `~/.claude/`, goes into the plan as an owner step with the exact
   command.
-- Subagents may read and research for you (adopt phases 1 and 2); they change nothing, and you check
-  what they report before you rely on it.
+- Subagents may read and research for you (adopt phases 1 and 2) and make the independent check of
+  S-25 ([`questions.md`](questions.md)); they change nothing, and you check what they report before
+  you rely on it.
 
 **The page for the owner**
 - The owner reads the report, answers its questions (`Q-<n>` of the report's `questions.md`; the
