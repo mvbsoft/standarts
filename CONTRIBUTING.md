@@ -6,7 +6,14 @@
 
 Open an issue with the **Proposal** template. If the proposal comes from an audit, attach the
 report's `proposals.md`; it is anonymised and contains no project details. Describe what happened
-in the project, which rule it concerns and what you suggest.
+in the project, which rule it concerns and what you suggest. When you agree at the start of an
+adopt or an update, the agent writes this issue for you and creates it from your account at the end.
+
+## Credit for ideas
+
+A proposal is taken only when tests and measurements show that it is worth it. Its change then
+ends its line in `CHANGELOG.md` with `(idea: @<account>, #<issue>)`, and the account that opened
+the issue gets a row in [`CONTRIBUTORS.md`](CONTRIBUTORS.md): what the idea gave and the issue.
 
 ## Making a change
 

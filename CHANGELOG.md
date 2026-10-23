@@ -17,6 +17,9 @@ that projects must act on; the update prompt re-audits the rules and templates n
 - `PRN-01`: the machine runs Linux, on Windows WSL 2 with the project in its Linux file system;
   `start` checks this first and stops otherwise; "Linux only" in "Known limits". `start` keeps the
   output of long commands in files and runs subagents that only read on a cheaper model.
+- `start`: in adopt and update the agent asks whether the owner will help improve the standard;
+  with a yes it keeps `proposals.md` up to the end and, with the owner's yes to the text, opens it
+  as an issue from their account; `CONTRIBUTORS.md` lists the people whose ideas were taken.
 - The template `project` 1.0.0:
   - checks in two floors: base commands `lint`, `test`, `e2e`, `security`, `infra` and group
     commands `gates` (the pre-push hook) and `verify`, with a summary line per check (`ok`, `FAIL`,

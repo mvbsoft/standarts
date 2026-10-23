@@ -68,6 +68,34 @@ follow the next file.
   repository), and write report files in it, except tables of technical names, paths and commands,
   which stay as they are. This is the language of the conversation; the language of the project's
   documentation is a question of its own (S-24).
+- In adopt (also when the project is set up again) and in update, right after you chose the mode,
+  ask once, translated, whether the owner will help improve the standard. Not in new, and not in a
+  run without a person. It is not a setup question: the answer stays in the report, never in the
+  registry.
+
+  > **Will you help improve the standard?**
+  > While I apply the standard to your project, I can write down in a separate file what could be
+  > better in the standard itself: a rule that is unclear, a step that did not work, a solution we
+  > found together for a problem of yours. Secrets, code, names and addresses of your project never
+  > go into it, only a general description.
+  > At the end I will show you the whole text. If you agree, we will make an issue of it in the
+  > standard's repository on GitHub from your account. If the standard's developers take your idea,
+  > and checks and measurements confirm it is worth it, your account and a description of your
+  > contribution go into the list of people who helped the standard.
+  > This does not affect the migration and takes a few minutes at the end.
+  > **Yes / No**
+
+  With a yes, that file is the report's `proposals.md` (adopt.md, "Report"): keep adding to it until
+  the end of the run, also while executing the plan and while solving a problem with the owner.
+  Before the secret scan of the report, write the issue in English as `proposals-issue.md` in the
+  report folder, in the shape of the standard's issue template
+  [`.github/ISSUE_TEMPLATE/proposal.md`](../.github/ISSUE_TEMPLATE/proposal.md), with the release
+  (`STANDARD_REF`) and the mode. At the end show it to the owner with a translation, and with their
+  yes to that text create it from their account:
+  `gh issue create --repo "$STANDARD_REPO" --title "Proposal: <one line>" --body-file <that file>`
+  when `gh auth status` succeeds; otherwise give the file and the link
+  `https://github.com/$STANDARD_REPO/issues/new?template=proposal.md` to paste it by hand. With a
+  no, `proposals.md` stays a part of the report and is never sent.
 - Stop after every phase of the mode file: say in a few lines what the phase found or did, show
   the questions it raised, and wait for the owner's answer before the next phase. In a run without a
   person (`claude -p` and the like) never wait: write the questions into the report's open
@@ -173,7 +201,8 @@ follow the next file.
   session, only to read, and from its `.env` only variable names, never values.
 - Write to an issue tracker or another remote service only while executing a plan the owner has
   approved (adopt phase 6, new step 5, update step 4), and only what that plan says (its tasks in
-  the backlog and their status).
+  the backlog and their status); the one exception is the proposals issue above, with the owner's
+  yes to its text.
 - Outside the project folder, change files only in the report folder (`~/audits/<repo>/`), the
   standard's cache (`~/.cache/standards/`) and temporary folders you delete afterwards. A change
   anywhere else, for example in `~/.claude/`, goes into the plan as an owner step with the exact

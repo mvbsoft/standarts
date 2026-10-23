@@ -16,7 +16,7 @@ the one list of host tools: other documents point here instead of repeating it.
 | `git` 2.31 or newer (the scripts use `git rev-parse --path-format`) | yes | yes |
 | `make`, POSIX `sh`, `ps` from procps, `stat` from GNU coreutils and `tar` (`sh` runs the `make` targets, the hooks and the language-server launcher) | yes | yes |
 | the coding agent (Claude Code, the one supported so far, [05-agents](05-agents.md)); Node.js, only if a global Claude Code plugin requires it | yes | no |
-| `gh`, for GitHub pull requests and issues (O; no template or prompt calls it) | if used | no |
+| `gh`, for GitHub pull requests and issues (O; no template calls it, and the prompts only to send the proposals of a run as an issue, with the owner's yes) | if used | no |
 
 Anything else that runs on the host is an exception under [PRN-09](#prn-09-exceptions-m), recorded
 in section E of the registry with its reason.

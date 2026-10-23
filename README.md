@@ -73,4 +73,5 @@ from this repository is copied in except the templates.
 Releases are git tags `vMAJOR.MINOR.PATCH` on `main`. A major release means projects must change
 something (a new rule or part that projects cannot decline is major), a minor one adds rules or templates that projects may take
 up, a patch only clarifies text. Each project's registry names the release it follows. How the
-standard itself is developed: [CONTRIBUTING](CONTRIBUTING.md). Licence: [MIT](LICENSE).
+standard itself is developed: [CONTRIBUTING](CONTRIBUTING.md); who helped it:
+[CONTRIBUTORS](CONTRIBUTORS.md). Licence: [MIT](LICENSE).

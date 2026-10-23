@@ -492,8 +492,9 @@ here, in any language: `### Q-<n>.`, `- [A] `, and `Recommendation:`.
 | `proposals.md` | one `## P-<n>. <rule ID>: <change>` per proposal: why it is better, a neutral example, the source |
 
 `proposals.md` holds what the project does better than the standard and where the standard did not
-work, written so it can be shared: no project names, paths, hostnames or secrets. The owner decides
-whether to send it as an issue to the standard's repository.
+work, written so it can be shared: no project names, paths, hostnames or secrets. Whether it is
+sent as an issue to the standard's repository is the owner's answer to the question of
+[`start.md`](start.md) section 3, "Will you help improve the standard?".
 
 Before the last message, scan the report folder for secrets with the gitleaks pinned in the
 project's dev image, the folder mounted read-only
