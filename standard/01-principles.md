@@ -21,6 +21,15 @@ the one list of host tools: other documents point here instead of repeating it.
 Anything else that runs on the host is an exception under [PRN-09](#prn-09-exceptions-m), recorded
 in section E of the registry with its reason.
 
+The machine runs Linux: a Linux computer or server, or WSL 2 on Windows. In WSL the project lives
+in the Linux file system (for example `~/projects/<repo>`), never on a Windows drive (`/mnt/c` and
+the like), and the agent runs in WSL too. A Windows drive keeps no Linux file modes by default, so
+`chmod 600` leaves `.env` readable by everyone and every `make` command that reads it refuses
+([PRN-04](#prn-04-fail-closed-m)). Windows without WSL has no `make`, and macOS has other `stat` and
+`ps` than the ones above: neither is supported yet.
+
+Sources of the Linux file system rule: Microsoft's page on file permissions in WSL, “This metadata is not enabled by default.” ([file permissions](https://learn.microsoft.com/en-us/windows/wsl/file-permissions)); its page on file systems, “store your files in the WSL file system if you are working in a Linux command line” ([file systems](https://learn.microsoft.com/en-us/windows/wsl/filesystems)). Checked on 2026-10-23 in WSL 2 (Ubuntu 24.04): on a Windows drive `chmod 600` left the mode `777`.
+
 Sources of the minimum versions: the Dockerfile reference, “This option requires Docker Engine version 25.0 or later.” ([start interval](https://docs.docker.com/reference/dockerfile/#healthcheck)); the Docker build checks page, “Buildx version 0.15.0 and later” ([checks](https://docs.docker.com/build/checks/)); the Git 2.31.0 release notes, “`git rev-parse` can be explicitly told to give output as absolute” or relative “with the `--path-format=(absolute|relative)` option” ([notes](https://raw.githubusercontent.com/git/git/master/Documentation/RelNotes/2.31.0.adoc)).
 
 ### PRN-02. One file, one environment (M)

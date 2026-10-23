@@ -21,6 +21,15 @@
 Будь-яке інше виконання на хості — виняток за [PRN-09](#prn-09-винятки-m), записаний у розділі E
 реєстру з причиною.
 
+Машина працює на Linux: комп'ютер чи сервер із Linux або WSL 2 у Windows. У WSL проєкт лежить у
+файловій системі Linux (наприклад, `~/projects/<repo>`), ніколи не на диску Windows (`/mnt/c` тощо),
+і агент теж працює у WSL. Диск Windows типово не зберігає Linux-права файлів, тож після `chmod 600`
+`.env` лишається доступним усім, і кожна команда `make`, що його читає, відмовляє
+([PRN-04](#prn-04-fail-closed-m)). У Windows без WSL немає `make`, а в macOS інші `stat` і `ps`, ніж
+названі вище: жодне з них поки не підтримується.
+
+Джерела правила про файлову систему Linux: сторінка Microsoft про права файлів у WSL, “This metadata is not enabled by default.” ([file permissions](https://learn.microsoft.com/en-us/windows/wsl/file-permissions)); її сторінка про файлові системи, “store your files in the WSL file system if you are working in a Linux command line” ([file systems](https://learn.microsoft.com/en-us/windows/wsl/filesystems)). Перевірено 2026-10-23 у WSL 2 (Ubuntu 24.04): на диску Windows `chmod 600` залишив права `777`.
+
 Джерела мінімальних версій: довідка Dockerfile, “This option requires Docker Engine version 25.0 or later.” ([start interval](https://docs.docker.com/reference/dockerfile/#healthcheck)); сторінка перевірок збірки Docker, “Buildx version 0.15.0 and later” ([checks](https://docs.docker.com/build/checks/)); нотатки до Git 2.31.0, “`git rev-parse` can be explicitly told to give output as absolute” або relative “with the `--path-format=(absolute|relative)` option” ([notes](https://raw.githubusercontent.com/git/git/master/Documentation/RelNotes/2.31.0.adoc)).
 
 ### PRN-02. Один файл — одне середовище (M)

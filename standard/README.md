@@ -86,3 +86,7 @@ their own project; a solution that departs from a rule is recorded as a deviatio
 - **Monitoring sees health, not load.** The status service reports what Docker records as the
   health of each container and the free disk space; it does not measure CPU or memory
   ([OPS-04](03-operations.md)). *You can:* add a tool for that and record it in the registry.
+- **Linux only.** The machine runs Linux or WSL 2, with the project in the Linux file system
+  ([PRN-01](01-principles.md#prn-01-everything-runs-in-docker-m)); Windows without WSL and macOS are
+  not supported yet. *You can:* on Windows, use WSL 2 with the project inside it; on macOS, work in
+  a Linux virtual machine.

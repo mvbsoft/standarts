@@ -14,6 +14,9 @@ that projects must act on; the update prompt re-audits the rules and templates n
   `S-25` in TYP-01 with their defaults; the bank of questions `prompt/questions.md`, asked one at a
   time in the owner's language; the answers in registry section 0, where a declined part is not a
   deviation; the new meaning of `M`, `R` and `O`.
+- `PRN-01`: the machine runs Linux, on Windows WSL 2 with the project in its Linux file system;
+  `start` checks this first and stops otherwise; "Linux only" in "Known limits". `start` keeps the
+  output of long commands in files and runs subagents that only read on a cheaper model.
 - The template `project` 1.0.0:
   - checks in two floors: base commands `lint`, `test`, `e2e`, `security`, `infra` and group
     commands `gates` (the pre-push hook) and `verify`, with a summary line per check (`ok`, `FAIL`,

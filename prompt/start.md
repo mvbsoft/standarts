@@ -3,7 +3,21 @@
 You were asked to bring the current project in line with the standard, or to create a new project
 by it. This file decides what to do and loads everything else.
 
-## 1. Get the standard
+## 1. Check the machine, then get the standard
+
+First check that this machine can run the standard. In the project folder:
+
+```sh
+uname -s
+f=$(mktemp ./.standard-check.XXXXXX) && chmod 600 "$f" && ls -l "$f"; rm -f "$f"
+```
+
+`uname -s` must print `Linux`, and the file's mode must be `-rw-------`. Otherwise stop here and
+change nothing: the standard's `make` commands would refuse or be missing (PRN-01 of the standard
+says why). Tell the owner in plain words what is wrong and how to fix it: on Windows, work in WSL 2
+with the project in its Linux file system (for example a fresh clone in `~/projects/<repo>`, not
+under `/mnt/c`) and start the agent there; on macOS, in a Linux virtual machine. A run without a
+person ends with that message.
 
 The owner's prompt gives `STANDARD_REPO` (a GitHub repository) and `STANDARD_REF` (a release tag
 such as `v1.0.0`). Fetch that exact release into a cache outside the project, with git only. The
@@ -164,9 +178,18 @@ follow the next file.
   standard's cache (`~/.cache/standards/`) and temporary folders you delete afterwards. A change
   anywhere else, for example in `~/.claude/`, goes into the plan as an owner step with the exact
   command.
+- Keep the conversation short: the agent sends all of it again with every step, so a long log
+  costs again on each later step. Write the whole output of a long command (a build, `make gates`,
+  `make verify`, a test run, the proof copy's script) to a file in
+  `~/audits/<repo>/<YYYY-MM-DD>/evidence/`, keep its exit status
+  (`make gates > "$log" 2>&1; echo "exit $?"`), and read its summary lines and errors (`tail`,
+  `grep`); read more of the file only when they do not explain the result. The report cites the
+  file.
 - Subagents may read and research for you (adopt phases 1 and 2) and make the independent check of
   S-25 ([`questions.md`](questions.md)); they change nothing, and you check what they report before
-  you rely on it.
+  you rely on it. Those that only read and research run on a cheaper model of the same agent where
+  it offers one (in Claude Code, `sonnet`); the plan, the decisions, the changes and the check of
+  S-25 stay on the session's model.
 
 **The page for the owner**
 - The owner reads the report, answers its questions (`Q-<n>` of the report's `questions.md`; the

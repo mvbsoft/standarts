@@ -19,7 +19,8 @@ situation, which `make` command does it and where the details are.
 
 ## Use it in a project
 
-Requirements on the machine: Linux, or WSL 2 on Windows, the host tools and versions that
+Requirements on the machine: Linux, or WSL 2 on Windows with the project inside WSL (not on a
+Windows drive), the host tools and versions that
 [PRN-01](standard/01-principles.md) lists, and an agent (Claude Code is the one supported so far).
 Nothing else is installed: every language tool runs in the project's dev container.
 
