@@ -18,12 +18,19 @@ done
 open=$(cat .work/QUESTIONS.md .work/QUESTIONS.uk.md | grep -c '^### Q-' || true)
 [ "$open" -eq 0 ] || fail "$open question headings remain in .work/QUESTIONS.md and .work/QUESTIONS.uk.md"
 sed -n '/^## Unreleased/,/^## /p' CHANGELOG.md | grep -q '^- ' || fail "CHANGELOG.md has nothing under Unreleased"
+for f in README.md README.uk.md; do
+  grep -q '^STANDARD_REF=' "$f" || fail "$f has no line STANDARD_REF= in its prompt"
+done
 make check
 make check-stacks
 
 for f in $(git ls-files '*.md'); do
   grep -Eq '^> (Version|Версія) ' "$f" || continue
   sed -E "s/^> (Version|Версія) [^ ]+/> \1 $v/" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+done
+# The prompt of each README fetches the release it names.
+for f in README.md README.uk.md; do
+  sed "s/^STANDARD_REF=.*/STANDARD_REF=v$v/" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
 done
 awk -v head="## v$v — $(date -u +%Y-%m-%d)" '{ print } /^## Unreleased$/ { print ""; print head }' CHANGELOG.md > CHANGELOG.md.tmp \
   && mv CHANGELOG.md.tmp CHANGELOG.md
